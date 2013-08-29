@@ -68,6 +68,14 @@
         <item name="android:listViewStyle">@style/ListViewStyle</item>
     </style>
 
+    <style name="CallStatsActivityTheme" parent="@android:style/Theme.Holo.DialogWhenLarge">
+        <item name="android:textColorSecondary">@color/dialtacts_secondary_text_color</item>
+        <item name="android:actionBarStyle">@style/DialtactsActionBarStyle</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowBackground">@drawable/background_dial_holo_dark</item>
+        <item name="android:listViewStyle">@style/ListViewStyle</item>
+    </style>
+
     <style name="CallDetailActivityTheme1" parent="@android:style/Theme.Holo">
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:gravity">top</item>
@@ -86,14 +94,6 @@
         <item name="call_log_voicemail_status_background_color">@color/call_log_voicemail_status_background_color</item>
         <item name="call_log_voicemail_status_text_color">@color/call_log_voicemail_status_text_color</item>
         <item name="call_log_voicemail_status_action_text_color">@color/call_log_voicemail_status_action_text_color</item>
-    </style>
-
-    <style name="CallStatsActivityTheme" parent="@android:style/Theme.Holo.DialogWhenLarge">
-        <item name="android:textColorSecondary">@color/dialtacts_secondary_text_color</item>
-        <item name="android:actionBarStyle">@style/DialtactsActionBarStyle</item>
-        <item name="android:windowContentOverlay">@null</item>
-        <item name="android:windowBackground">@drawable/background_dial_holo_dark</item>
-        <item name="android:listViewStyle">@style/ListViewStyle</item>
     </style>
 
     <style name="Theme">
@@ -130,7 +130,7 @@
         <item name="android:displayOptions"></item>
     </style>
 
-    <style name="ListViewStyle" parent="@android:style/Widget.Holo.Light.ListView">
+    <style name="ListViewStyle" parent="@android:style/Widget.Holo.ListView">
         <item name="android:overScrollMode">always</item>
     </style>
 
