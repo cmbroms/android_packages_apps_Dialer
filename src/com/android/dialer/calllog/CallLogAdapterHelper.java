@@ -402,13 +402,14 @@ public class CallLogAdapterHelper implements ViewTreeObserver.OnPreDrawListener 
     }
 
 
-    public ContactInfo lookupContact(String number, String countryIso, ContactInfo cachedContactInfo) {
+    public ContactInfo lookupContact(String number, int numberPresentation,
+            String countryIso, ContactInfo cachedContactInfo) {
         NumberWithCountryIso numberCountryIso = new NumberWithCountryIso(number, countryIso);
         ExpirableCache.CachedValue<ContactInfo> cachedInfo =
                 mContactInfoCache.getCachedValue(numberCountryIso);
         ContactInfo info = cachedInfo == null ? null : cachedInfo.getValue();
-        if (!mPhoneNumberHelper.canPlaceCallsTo(number)
-                || mPhoneNumberHelper.isVoicemailNumber(number)) {
+        if (!PhoneNumberUtilsWrapper.canPlaceCallsTo(number, numberPresentation)
+                || new PhoneNumberUtilsWrapper().isVoicemailNumber(number)) {
             // If this is a number that cannot be dialed, there is no point in looking up a contact
             // for it.
             info = ContactInfo.EMPTY;

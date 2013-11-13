@@ -27,6 +27,7 @@ import android.widget.TextView;
 
 import com.android.dialer.R;
 import com.android.dialer.calllog.PhoneNumberHelper;
+import com.android.dialer.calllog.PhoneNumberUtilsWrapper;
 
 /**
  * Class used to populate a detailed view for a callstats item
@@ -35,10 +36,12 @@ public class CallStatsDetailHelper {
 
     private final Resources mResources;
     private final PhoneNumberHelper mPhoneNumberHelper;
+    private final PhoneNumberUtilsWrapper mPhoneNumberUtilsWrapper;
 
-    public CallStatsDetailHelper(Resources resources, PhoneNumberHelper phoneNumberHelper) {
+    public CallStatsDetailHelper(Resources resources, PhoneNumberUtilsWrapper phoneUtils) {
         mResources = resources;
-        mPhoneNumberHelper = phoneNumberHelper;
+        mPhoneNumberHelper = new PhoneNumberHelper(resources);
+        mPhoneNumberUtilsWrapper = phoneUtils;
     }
 
     public void setCallStatsDetails(CallStatsDetailViews views,
@@ -57,12 +60,12 @@ public class CallStatsDetailHelper {
         final CharSequence numberText;
         final CharSequence labelText;
         final CharSequence displayNumber = mPhoneNumberHelper.getDisplayNumber(
-                details.number, details.formattedNumber);
+                details.number, details.numberPresentation, details.formattedNumber);
 
         if (TextUtils.isEmpty(details.name)) {
             nameText = displayNumber;
             if (TextUtils.isEmpty(details.geocode)
-                    || mPhoneNumberHelper.isVoicemailNumber(details.number)) {
+                    || mPhoneNumberUtilsWrapper.isVoicemailNumber(details.number)) {
                 numberText = mResources.getString(R.string.call_log_empty_gecode);
             } else {
                 numberText = details.geocode;
@@ -119,7 +122,8 @@ public class CallStatsDetailHelper {
     public void setCallStatsDetailHeader(TextView nameView, CallStatsDetails details) {
         final CharSequence nameText;
         final CharSequence displayNumber = mPhoneNumberHelper.getDisplayNumber(
-                details.number, mResources.getString(R.string.recentCalls_addToContact));
+                details.number, details.numberPresentation,
+                mResources.getString(R.string.recentCalls_addToContact));
 
         if (TextUtils.isEmpty(details.name)) {
             nameText = displayNumber;

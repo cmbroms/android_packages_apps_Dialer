@@ -37,6 +37,7 @@ public class CallStatsQuery {
             Calls.CACHED_NORMALIZED_NUMBER, // 12
             Calls.CACHED_PHOTO_ID, // 13
             Calls.CACHED_FORMATTED_NUMBER, // 14
+            Calls.NUMBER_PRESENTATION, // 15
     };
 
     public static final int ID = 0;
@@ -54,5 +55,5 @@ public class CallStatsQuery {
     public static final int CACHED_NORMALIZED_NUMBER = 12;
     public static final int CACHED_PHOTO_ID = 13;
     public static final int CACHED_FORMATTED_NUMBER = 14;
-
+    public static final int NUMBER_PRESENTATION = 15;
 }

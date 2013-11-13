@@ -43,6 +43,7 @@ import com.android.contacts.common.ContactPhotoManager;
 import com.android.contacts.common.format.FormatUtils;
 import com.android.contacts.common.util.Constants;
 import com.android.dialer.calllog.PhoneNumberHelper;
+import com.android.dialer.calllog.PhoneNumberUtilsWrapper;
 
 public class CallDetailHeader {
     private static final char LEFT_TO_RIGHT_EMBEDDING = '\u202A';
@@ -71,6 +72,7 @@ public class CallDetailHeader {
     public interface Data {
         CharSequence getName();
         CharSequence getNumber();
+        int getNumberPresentation();
         int getNumberType();
         CharSequence getNumberLabel();
         CharSequence getFormattedNumber();
@@ -183,23 +185,24 @@ public class CallDetailHeader {
         }
     }
 
-    public void updateViews(String number, Data data) {
+    public void updateViews(String number, int numberPresentation, Data data) {
         // Cache the details about the phone number.
-        final boolean isVoicemailNumber = mPhoneNumberHelper.isVoicemailNumber(number);
-        final boolean isSipNumber = mPhoneNumberHelper.isSipNumber(number);
+        final PhoneNumberUtilsWrapper phoneUtils = new PhoneNumberUtilsWrapper();
+        final boolean isVoicemailNumber = phoneUtils.isVoicemailNumber(number);
+        final boolean isSipNumber = phoneUtils.isSipNumber(number);
+
+        final CharSequence dataName = data.getName();
+        final CharSequence dataNumber = data.getNumber();
+        final Uri contactUri = data.getContactUri();
 
         mNumber = number;
-        mCanPlaceCallsTo = mPhoneNumberHelper.canPlaceCallsTo(number);
+        mCanPlaceCallsTo = PhoneNumberUtilsWrapper.canPlaceCallsTo(number, numberPresentation);
 
         // Let user view contact details if they exist, otherwise add option to create new
         // contact from this number.
         final Intent mainActionIntent;
         final int mainActionIcon;
         final String mainActionDescription;
-
-        final CharSequence dataName = data.getName();
-        final CharSequence dataNumber = data.getNumber();
-        final Uri contactUri = data.getContactUri();
 
         final CharSequence nameOrNumber;
         if (!TextUtils.isEmpty(dataName)) {
@@ -272,7 +275,7 @@ public class CallDetailHeader {
         if (mCanPlaceCallsTo) {
             final CharSequence displayNumber =
                 mPhoneNumberHelper.getDisplayNumber(
-                        dataNumber, data.getFormattedNumber());
+                        dataNumber, data.getNumberPresentation(), data.getFormattedNumber());
 
             ViewEntry entry = new ViewEntry(
                     mResources.getString(R.string.menu_callNumber,
@@ -290,9 +293,9 @@ public class CallDetailHeader {
 
             // The secondary action allows to send an SMS to the number that placed the
             // call.
-            if (mPhoneNumberHelper.canSendSmsTo(number)) {
+            if (phoneUtils.canSendSmsTo(number, numberPresentation)) {
                 entry.setSecondaryAction(
-                        R.drawable.ic_text_holo_dark,
+                        R.drawable.ic_text_holo_light,
                         new Intent(Intent.ACTION_SENDTO,
                             Uri.fromParts("sms", number, null)),
                         mResources.getString(R.string.description_send_text_message, nameOrNumber));
