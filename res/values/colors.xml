@@ -17,7 +17,7 @@
 <resources>
 
     <!-- Secondary text color in the Phone app -->
-    <color name="dialtacts_primary_text_color">#111111</color>
+    <color name="dialtacts_primary_text_color">#FFFFFF</color>
     <color name="dialtacts_secondary_text_color">#888888</color>
     <color name="dialpad_text_color">#ffffff</color>
 
@@ -29,19 +29,19 @@
 
     <!-- Colour of voicemail progress bar to the right of position indicator.
          Same as the background color of the dialer -->
-    <color name="voicemail_playback_seek_bar_yet_to_play">#cecece</color>
+    <color name="voicemail_playback_seek_bar_yet_to_play">#44ffffff</color>
 
     <!-- Colour of voicemail progress bar to the left of position indicator. -->
-    <color name="voicemail_playback_seek_bar_already_played">#39c9ff</color>
+    <color name="voicemail_playback_seek_bar_already_played">#ccffffff</color>
 
     <!-- Standard color for selected items. -->
     <color name="item_selected">#660099cc</color>
 
     <!-- Background color of new dialer activity -->
-    <color name="background_dialer_light">#cecece</color>
+    <color name="background_dialer_light">#000000</color>
 
     <!-- Background color of dialer list items (contacts, call log entries) -->
-    <color name="background_dialer_list_items">#f5f5f5</color>
+    <color name="background_dialer_list_items">#666666</color>
 
     <!-- Background color of new dialpad -->
     <color name="background_dialpad">#f2020709</color>
@@ -52,13 +52,13 @@
     <color name="dialpad_secondary_text_color">#aaaaaa</color>
 
     <!-- Background color of action bars -->
-    <color name="actionbar_background_color">#e6e6e6</color>
+    <color name="actionbar_background_color">#000000</color>
 
     <!-- Color of the 1dp divider that separates favorites -->
     <color name="favorite_contacts_separator_color">#d0d0d0</color>
 
     <!-- Background color of the search box -->
-    <color name="searchbox_background_color">#ffffff</color>
+    <color name="searchbox_background_color">#000000</color>
     <!-- Text color of the search box -->
     <color name="searchbox_text_color">#d3d3d3</color>
 
@@ -66,10 +66,10 @@
     <color name="contact_tile_name_color">#f0f0f0</color>
 
     <!-- Undo dialogue color -->
-    <color name="undo_dialogue_text_color">#4d4d4d</color>
+    <color name="undo_dialogue_text_color">#ffffff</color>
 
     <!-- Text color for no favorites message -->
-    <color name="nofavorite_text_color">#777777</color>
+    <color name="nofavorite_text_color">#ffffff</color>
 
     <!-- Colors for incoming and outgoing calls in the call statistics -->
     <color name="call_stats_incoming">#33b5e5</color>
