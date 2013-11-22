@@ -55,10 +55,10 @@
     <color name="actionbar_background_color">#222222</color>
 
     <!-- Color of the 1dp divider that separates favorites -->
-    <color name="favorite_contacts_separator_color">#d0d0d0</color>
+    <color name="favorite_contacts_separator_color">#33b5e5</color>
 
     <!-- Background color of the search box -->
-    <color name="searchbox_background_color">#838483</color>
+    <color name="searchbox_background_color">#222222</color>
     <!-- Text color of the search box -->
     <color name="searchbox_text_color">#ffffff</color>
 
