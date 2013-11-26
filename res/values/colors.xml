@@ -75,5 +75,5 @@
     <color name="call_stats_incoming">#33b5e5</color>
     <color name="call_stats_outgoing">#99cc00</color>
     <color name="call_stats_missed">#eb1313</color>
-    <color name="call_stats_bar_background">#88888888</color>
+    <color name="call_stats_bar_background">#222222</color>
 </resources>
