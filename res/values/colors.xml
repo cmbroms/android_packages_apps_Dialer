@@ -52,13 +52,13 @@
     <color name="dialpad_secondary_text_color">#aaaaaa</color>
 
     <!-- Background color of action bars -->
-    <color name="actionbar_background_color">#222222</color>
+    <color name="actionbar_background_color">#524c4c</color>
 
     <!-- Color of the 1dp divider that separates favorites -->
     <color name="favorite_contacts_separator_color">#33b5e5</color>
 
     <!-- Background color of the search box -->
-    <color name="searchbox_background_color">#222222</color>
+    <color name="searchbox_background_color">#524c4c</color>
     <!-- Text color of the search box -->
     <color name="searchbox_text_color">#ffffff</color>
 
@@ -75,5 +75,5 @@
     <color name="call_stats_incoming">#33b5e5</color>
     <color name="call_stats_outgoing">#99cc00</color>
     <color name="call_stats_missed">#eb1313</color>
-    <color name="call_stats_bar_background">#222222</color>
+    <color name="call_stats_bar_background">#524c4c</color>
 </resources>
