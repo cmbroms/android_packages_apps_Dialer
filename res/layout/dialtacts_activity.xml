@@ -81,6 +81,11 @@
             android:id="@+id/dialtacts_frame"
             android:clipChildren="false">
         </FrameLayout>
+        <View
+            android:layout_height="2dp"
+            android:layout_width="match_parent"
+            android:background="#33999999"
+        />
         <FrameLayout
             android:layout_height="@dimen/fake_action_bar_height"
             android:layout_width="match_parent"
