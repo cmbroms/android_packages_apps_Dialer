@@ -64,7 +64,7 @@ public class CallTypeHelper {
                 return mVoicemailName;
 
             default:
-                return mMissedName;
+                throw new IllegalArgumentException("invalid call type: " + callType);
         }
     }
 
@@ -86,15 +86,7 @@ public class CallTypeHelper {
                 return mNewVoicemailColor;
 
             default:
-                // Don't highlight calls of unknown types. They are treated as missed calls by
-                // the rest of the UI, but since they will never be marked as read by
-                // {@link CallLogQueryHandler}, just don't ever highlight them anyway.
-                return null;
+                throw new IllegalArgumentException("invalid call type: " + callType);
         }
-    }
-
-    public static boolean isMissedCallType(int callType) {
-        return (callType != Calls.INCOMING_TYPE && callType != Calls.OUTGOING_TYPE &&
-                callType != Calls.VOICEMAIL_TYPE);
     }
 }

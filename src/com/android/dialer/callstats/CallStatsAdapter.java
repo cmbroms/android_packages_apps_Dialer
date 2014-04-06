@@ -33,7 +33,6 @@ import com.android.dialer.calllog.CallLogAdapterHelper;
 import com.android.dialer.calllog.ContactInfo;
 import com.android.dialer.calllog.ContactInfoHelper;
 import com.android.dialer.calllog.PhoneNumberHelper;
-import com.android.dialer.calllog.PhoneNumberUtilsWrapper;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,23 +45,18 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 class CallStatsAdapter extends ArrayAdapter<CallStatsDetails>
         implements CallLogAdapterHelper.Callback {
-    /** Interface used to initiate a refresh of the content. */
-    public interface CallDataLoader {
-        public boolean isDataLoaded();
-    }
 
     private final View.OnClickListener mPrimaryActionListener = new View.OnClickListener() {
         @Override
         public void onClick(View view) {
             IntentProvider intentProvider = (IntentProvider) view.getTag();
             if (intentProvider != null) {
-                mContext.startActivity(intentProvider.getIntent(mContext));
+                mParent.startActivity(intentProvider.getIntent(mParent));
             }
         }
     };
 
-    private final Context mContext;
-    private final CallDataLoader mDataLoader;
+    private final CallStatsActivity mParent;
     private final CallLogAdapterHelper mAdapterHelper;
     private final CallStatsDetailHelper mCallStatsDetailHelper;
 
@@ -96,30 +90,26 @@ class CallStatsAdapter extends ArrayAdapter<CallStatsDetails>
         }
     };
 
-    CallStatsAdapter(Context context, CallDataLoader dataLoader) {
-        super(context, R.layout.call_stats_list_item, R.id.number);
-
-        mContext = context;
-        mDataLoader = dataLoader;
+    CallStatsAdapter(CallStatsActivity parent) {
+        super(parent, R.layout.call_stats_list_item, R.id.number);
 
         setNotifyOnChange(false);
 
         mAllItems = new ArrayList<CallStatsDetails>();
-        mTotalItem = new CallStatsDetails(null, 0, null, null, null, 0);
+        mTotalItem = new CallStatsDetails(null, null, null, null, 0);
         mInfoLookup = new ConcurrentHashMap<ContactInfo, CallStatsDetails>();
+        mParent = parent;
 
-        Resources resources = mContext.getResources();
+        Resources resources = mParent.getResources();
         PhoneNumberHelper phoneNumberHelper = new PhoneNumberHelper(resources);
 
-        final String currentCountryIso = GeoUtil.getCurrentCountryIso(mContext);
-        final ContactInfoHelper contactInfoHelper =
-                new ContactInfoHelper(mContext, currentCountryIso);
+        final String currentCountryIso = GeoUtil.getCurrentCountryIso(mParent);
+        final ContactInfoHelper contactInfoHelper = new ContactInfoHelper(mParent, currentCountryIso);
 
-        mAdapterHelper = new CallLogAdapterHelper(mContext, this,
+        mAdapterHelper = new CallLogAdapterHelper(mParent, this,
                 contactInfoHelper, phoneNumberHelper);
-        mContactPhotoManager = ContactPhotoManager.getInstance(mContext);
-        mCallStatsDetailHelper = new CallStatsDetailHelper(resources,
-                new PhoneNumberUtilsWrapper());
+        mContactPhotoManager = ContactPhotoManager.getInstance(mParent);
+        mCallStatsDetailHelper = new CallStatsDetailHelper(resources, phoneNumberHelper);
     }
 
     public void updateData(Map<ContactInfo, CallStatsDetails> calls, long from, long to) {
@@ -135,8 +125,7 @@ class CallStatsAdapter extends ArrayAdapter<CallStatsDetails>
             final CallStatsDetails call = entry.getValue();
             mAllItems.add(call);
             mTotalItem.mergeWith(call);
-            mAdapterHelper.lookupContact(call.number, call.numberPresentation,
-                    call.countryIso, entry.getKey());
+            mAdapterHelper.lookupContact(call.number, call.countryIso, entry.getKey());
         }
     }
 
@@ -172,18 +161,18 @@ class CallStatsAdapter extends ArrayAdapter<CallStatsDetails>
 
     public String getTotalCallCountString() {
         return CallStatsDetailHelper.getCallCountString(
-                mContext.getResources(), mTotalItem.getRequestedCount(mType));
+                mParent.getResources(), mTotalItem.getRequestedCount(mType));
     }
 
     public String getFullDurationString(boolean withSeconds) {
         final long duration = mTotalItem.getRequestedDuration(mType);
         return CallStatsDetailHelper.getDurationString(
-                mContext.getResources(), duration, withSeconds);
+                mParent.getResources(), duration, withSeconds);
     }
 
     @Override
     public boolean isEmpty() {
-        if (!mDataLoader.isDataLoaded()) {
+        if (!mParent.isDataLoaded()) {
             return false;
         }
         return super.isEmpty();
@@ -229,7 +218,7 @@ class CallStatsAdapter extends ArrayAdapter<CallStatsDetails>
 
     private void setPhoto(CallStatsListItemViews views, long photoId, Uri contactUri) {
         views.quickContactView.assignContactUri(contactUri);
-        mContactPhotoManager.loadThumbnail(views.quickContactView, photoId, false);
+        mContactPhotoManager.loadThumbnail(views.quickContactView, photoId, true);
     }
 
     @Override

@@ -38,8 +38,6 @@ import com.android.dialer.R;
 import com.android.dialer.calllog.ContactInfo;
 import com.android.dialer.calllog.ContactInfoHelper;
 import com.android.dialer.calllog.PhoneNumberHelper;
-import com.android.dialer.calllog.PhoneNumberUtilsWrapper;
-import com.android.dialer.widget.PieChartView;
 
 /**
  * Activity to display detailed information about a callstat item
@@ -95,8 +93,7 @@ public class CallStatsDetailActivity extends Activity {
 
         PhoneNumberHelper phoneNumberHelper = new PhoneNumberHelper(mResources);
         mCallDetailHeader = new CallDetailHeader(this, phoneNumberHelper);
-        mCallStatsDetailHelper = new CallStatsDetailHelper(mResources,
-                new PhoneNumberUtilsWrapper());
+        mCallStatsDetailHelper = new CallStatsDetailHelper(mResources, phoneNumberHelper);
         mContactInfoHelper = new ContactInfoHelper(this, GeoUtil.getCurrentCountryIso(this));
 
         mHeaderTextView = (TextView) findViewById(R.id.header_text);
@@ -147,7 +144,7 @@ public class CallStatsDetailActivity extends Activity {
 
         // Set the details header, based on the first phone call.
         mCallStatsDetailHelper.setCallStatsDetailHeader(mHeaderTextView, mData);
-        mCallDetailHeader.updateViews(mNumber, mData.numberPresentation, mData);
+        mCallDetailHeader.updateViews(mNumber, mData);
         mCallDetailHeader.loadContactPhotos(mData.photoUri);
         invalidateOptionsMenu();
 
@@ -265,8 +262,8 @@ public class CallStatsDetailActivity extends Activity {
     }
 
     private void onHomeSelected() {
-        Intent intent = new Intent(Intent.ACTION_VIEW, Calls.CONTENT_URI);
-        // This will open the call log even if the detail view has been opened directly.
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setClass(this, CallStatsActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         startActivity(intent);
         finish();

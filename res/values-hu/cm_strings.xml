@@ -15,7 +15,6 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="call_log_stats_title">Statisztikák</string>
     <string name="callStatsDetailTitle">Részletek</string>
     <string name="call_stats">Hívásinfó</string>
     <string name="call_stats_refresh">Frissítés</string>
@@ -47,4 +46,5 @@
     <string name="call_stats_sort_by_count">Rendezés hívások száma szerint</string>
     <string name="menu_add_to_blacklist">Hozzáadás a tiltólistához</string>
     <string name="toast_added_to_blacklist">%s hozzáadva a tiltólistához.</string>
+    <string name="dial_conference">Konferenciahívás</string>
 </resources>

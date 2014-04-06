@@ -16,6 +16,8 @@
 
 package com.android.dialer.dialpad;
 
+import static com.android.dialer.dialpad.SmartDialController.LOG_TAG;
+
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -23,12 +25,10 @@ import java.util.ArrayList;
 /**
  * Stores information about a range of characters matched in a display name The integers
  * start and end indicate that the range start to end (exclusive) correspond to some characters
- * in the query. Used to highlight certain parts of the contact's display name to indicate that
- * those ranges matched the user's query.
+ * in the query. Used by {@link SmartDialController} to highlight certain parts of the contact's
+ * display name to indicate that those ranges matched the user's query.
  */
-public class SmartDialMatchPosition {
-    private static final String TAG = SmartDialMatchPosition.class.getSimpleName();
-
+class SmartDialMatchPosition {
     public int start;
     public int end;
 
@@ -64,7 +64,7 @@ public class SmartDialMatchPosition {
     public static void print(ArrayList<SmartDialMatchPosition> list) {
         for (int i = 0; i < list.size(); i ++) {
             SmartDialMatchPosition m = list.get(i);
-            Log.d(TAG, "[" + m.start + "," + m.end + "]");
+            Log.d(LOG_TAG, "[" + m.start + "," + m.end + "]");
         }
     }
 }

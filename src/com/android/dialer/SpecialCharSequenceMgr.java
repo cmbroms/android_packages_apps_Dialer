@@ -1,7 +1,7 @@
 /*
+ * Copyright (C) 2006 The Android Open Source Project
  * Copyright (c) 2013, The Linux Foundation. All rights reserved.
  * Not a Contribution.
- * Copyright (C) 2006 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -179,6 +179,7 @@ public class SpecialCharSequenceMgr {
         }
 
         int len = input.length();
+        int subscription = 0;
         Uri uri = null;
 
         if ((len > 1) && (len < 5) && (input.endsWith("#"))) {
@@ -216,10 +217,9 @@ public class SpecialCharSequenceMgr {
 
                 // display the progress dialog
                 sc.progressDialog.show();
+                subscription = MSimTelephonyManager.getDefault().getPreferredVoiceSubscription();
 
                 if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-                    int subscription = MSimTelephonyManager.getDefault().
-                            getPreferredVoiceSubscription();
                     String[] adn = {"adn", "adn_sub2", "adn_sub3"};
 
                     uri = Uri.parse("content://iccmsim/" + adn[subscription]);
@@ -270,11 +270,9 @@ public class SpecialCharSequenceMgr {
 
     static boolean handleIMEIDisplay(Context context, String input, boolean useSystemWindow) {
         if (input.equals(MMI_IMEI_DISPLAY)) {
+            int subscription = MSimTelephonyManager.getDefault().getPreferredVoiceSubscription();
             int phoneType;
             if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-                int subscription = MSimTelephonyManager.getDefault().
-                        getPreferredVoiceSubscription();
-
                 phoneType = ((MSimTelephonyManager)context.getSystemService(
                         Context.MSIM_TELEPHONY_SERVICE)).getCurrentPhoneType(subscription);
             } else {
@@ -317,11 +315,9 @@ public class SpecialCharSequenceMgr {
     // the phone app's TelephonyCapabilities.getDeviceIdLabel() method
     // into the telephony framework, though.)
     private static void showIMEIPanel(Context context, boolean useSystemWindow) {
+        int subscription = MSimTelephonyManager.getDefault().getPreferredVoiceSubscription();
         String imeiStr;
         if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-            int subscription = MSimTelephonyManager.getDefault().
-                    getPreferredVoiceSubscription();
-
             imeiStr = ((MSimTelephonyManager)context.
                     getSystemService(Context.MSIM_TELEPHONY_SERVICE)).getDeviceId(subscription);
         } else {
@@ -338,11 +334,9 @@ public class SpecialCharSequenceMgr {
     }
 
     private static void showMEIDPanel(Context context, boolean useSystemWindow) {
+        int subscription = MSimTelephonyManager.getDefault().getPreferredVoiceSubscription();
         String meidStr;
         if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-            int subscription = MSimTelephonyManager.getDefault().
-                    getPreferredVoiceSubscription();
-
             meidStr = ((MSimTelephonyManager)context.
                     getSystemService(Context.MSIM_TELEPHONY_SERVICE)).getDeviceId(subscription);
         } else {

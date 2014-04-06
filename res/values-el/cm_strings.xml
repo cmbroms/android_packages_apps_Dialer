@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-     Copyright (C) 2013-2014 The CyanogenMod Project
+     Copyright (C) 2013 The CyanogenMod Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="call_log_stats_title">Στατιστικά</string>
     <string name="callStatsDetailTitle">Λεπτομέρειες στατιστικών κλήσεων</string>
     <string name="call_stats">Στατιστικά κλήσεων</string>
     <string name="call_stats_refresh">Ανανέωση</string>
@@ -47,6 +46,5 @@
     <string name="call_stats_sort_by_count">Ταξινόμηση κατά αριθμό κλήσεων</string>
     <string name="menu_add_to_blacklist">Προσθήση στη μαύρη λίστα</string>
     <string name="toast_added_to_blacklist">%s προστέθηκε στη μαύρη λίστα.</string>
-    <string name="nearby_places">Κοντινές τοποθεσίες</string>
-    <string name="people">Άτομα</string>
+    <string name="dial_conference">Κλήση συνδιάσκεψης</string>
 </resources>

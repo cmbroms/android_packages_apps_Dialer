@@ -15,7 +15,6 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="call_log_stats_title">Statistieken</string>
     <string name="callStatsDetailTitle">Gespreksstatistiekdetails</string>
     <string name="call_stats">Gespreksstatistieken</string>
     <string name="call_stats_refresh">Vernieuwen</string>
@@ -47,6 +46,7 @@
     <string name="call_stats_sort_by_count">Sorteren op gespreksaantal</string>
     <string name="menu_add_to_blacklist">Toevoegen aan zwarte lijst</string>
     <string name="toast_added_to_blacklist">%s toegevoegd aan zwarte lijst.</string>
-    <string name="nearby_places">Nabijgelegen plaatsen</string>
-    <string name="people">Mensen</string>
+
+    <!-- CAF strings -->
+    <string name="dial_conference">Groepsgesprek</string>
 </resources>

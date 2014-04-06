@@ -21,7 +21,6 @@ import android.view.View;
 import android.widget.TextView;
 
 import com.android.dialer.R;
-import com.android.dialer.widget.LinearColorBar;
 
 public final class CallStatsDetailViews {
     public final TextView nameView;

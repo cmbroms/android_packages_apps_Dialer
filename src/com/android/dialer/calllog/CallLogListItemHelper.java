@@ -28,7 +28,7 @@ import com.android.dialer.R;
 /**
  * Helper class to fill in the views of a call log entry.
  */
-/* package */class CallLogListItemHelper {
+/*package*/ class CallLogListItemHelper {
     /** Helper for populating the details of a phone call. */
     private final PhoneCallDetailsHelper mPhoneCallDetailsHelper;
     /** Helper for handling phone numbers. */
@@ -57,22 +57,24 @@ import com.android.dialer.R;
      * @param isHighlighted whether to use the highlight text for the call
      */
     public void setPhoneCallDetails(CallLogListItemViews views, PhoneCallDetails details,
-            boolean isHighlighted, boolean useCallAsPrimaryAction) {
+            boolean isHighlighted) {
         mPhoneCallDetailsHelper.setPhoneCallDetails(views.phoneCallDetailsViews, details,
                 isHighlighted);
-        boolean canCall = PhoneNumberUtilsWrapper.canPlaceCallsTo(details.number,
-                details.numberPresentation);
+        boolean canCall = mPhoneNumberHelper.canPlaceCallsTo(details.number);
         boolean canPlay = details.callTypes[0] == Calls.VOICEMAIL_TYPE;
 
         if (canPlay) {
             // Playback action takes preference.
             configurePlaySecondaryAction(views, isHighlighted);
-        } else if (canCall && !useCallAsPrimaryAction) {
+            views.dividerView.setVisibility(View.VISIBLE);
+        } else if (canCall) {
             // Call is the secondary action.
             configureCallSecondaryAction(views, details);
+            views.dividerView.setVisibility(View.VISIBLE);
         } else {
             // No action available.
             views.secondaryActionView.setVisibility(View.GONE);
+            views.dividerView.setVisibility(View.GONE);
         }
     }
 
@@ -80,7 +82,7 @@ import com.android.dialer.R;
     private void configureCallSecondaryAction(CallLogListItemViews views,
             PhoneCallDetails details) {
         views.secondaryActionView.setVisibility(View.VISIBLE);
-        views.secondaryActionView.setImageResource(R.drawable.ic_phone_dk);
+        views.secondaryActionView.setImageResource(R.drawable.ic_ab_dialer_holo_dark);
         views.secondaryActionView.setContentDescription(getCallActionDescription(details));
     }
 
@@ -91,7 +93,7 @@ import com.android.dialer.R;
             recipient = details.name;
         } else {
             recipient = mPhoneNumberHelper.getDisplayNumber(
-                    details.number, details.numberPresentation, details.formattedNumber);
+                    details.number, details.formattedNumber);
         }
         return mResources.getString(R.string.description_call, recipient);
     }
@@ -100,7 +102,7 @@ import com.android.dialer.R;
     private void configurePlaySecondaryAction(CallLogListItemViews views, boolean isHighlighted) {
         views.secondaryActionView.setVisibility(View.VISIBLE);
         views.secondaryActionView.setImageResource(
-                isHighlighted ? R.drawable.ic_play_active_holo_dark : R.drawable.ic_play_holo_light);
+                isHighlighted ? R.drawable.ic_play_active_holo_dark : R.drawable.ic_play_holo_dark);
         views.secondaryActionView.setContentDescription(
                 mResources.getString(R.string.description_call_log_play_button));
     }

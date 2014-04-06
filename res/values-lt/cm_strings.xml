@@ -15,7 +15,6 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="call_log_stats_title">Statistika</string>
     <string name="callStatsDetailTitle">Skambučių statistikos informacija</string>
     <string name="call_stats">Skambučių statistika</string>
     <string name="call_stats_refresh">Atnaujinti</string>
@@ -42,9 +41,10 @@
     <string name="date_qs_lastquarter">Praėjęs ketvirtis</string>
     <string name="date_qs_lastyear">Praėję metai</string>
     <string name="call_stats_date_filter">Nustatyti laikotarpį</string>
-    <string name="call_stats_reset_filter">Atkurti laikotarpį</string>
+    <string name="call_stats_reset_filter">Atstatyti laikotarpį</string>
     <string name="call_stats_sort_by_duration">Rikiuoti pagal trukmę</string>
     <string name="call_stats_sort_by_count">Rikiuoti pagal skaičių</string>
     <string name="menu_add_to_blacklist">Įtraukti į juodąjį sąrašą</string>
-    <string name="toast_added_to_blacklist">%s pridėtas į juodąjį sąrašą.</string>
+    <string name="toast_added_to_blacklist">%s pridėtas į juodą sąrašą.</string>
+    <string name="dial_conference">Konferencinis skambutis</string>
 </resources>

@@ -86,11 +86,7 @@ public class CallTypeIconsView extends View {
             case Calls.VOICEMAIL_TYPE:
                 return mResources.voicemail;
             default:
-                // It is possible for users to end up with calls with unknown call types in their
-                // call history, possibly due to 3rd party call log implementations (e.g. to
-                // distinguish between rejected and missed calls). Instead of crashing, just
-                // assume that all unknown call types are missed calls.
-                return mResources.missed;
+                throw new IllegalArgumentException("invalid call type: " + callType);
         }
     }
 

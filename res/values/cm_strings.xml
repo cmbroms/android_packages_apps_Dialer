@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-     Copyright (C) 2013-2014 The CyanogenMod Project
+     Copyright (C) 2013 The CyanogenMod Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="call_log_stats_title">Statistics</string>
-    <string name="callStatsDetailTitle">Call stat details</string>
 
+    <!-- Title bar for call stat detail screen -->
+    <string name="callStatsDetailTitle">Call stat details</string>
     <string name="call_stats">Call statistics</string>
     <string name="call_stats_refresh">Refresh</string>
     <string name="activity_title_call_stats">Call statistics</string>
@@ -52,8 +52,4 @@
 
     <string name="menu_add_to_blacklist">Add to blacklist</string>
     <string name="toast_added_to_blacklist">%s added to blacklist.</string>
-
-    <!-- Forward lookup -->
-    <string name="nearby_places">Nearby places</string>
-    <string name="people">People</string>
 </resources>

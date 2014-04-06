@@ -18,7 +18,6 @@ package com.android.dialer;
 
 import android.content.res.Resources;
 import android.graphics.Typeface;
-import android.provider.ContactsContract;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
 import android.telephony.PhoneNumberUtils;
 import android.text.SpannableString;
@@ -32,9 +31,7 @@ import android.widget.TextView;
 
 import com.android.contacts.common.test.NeededForTesting;
 import com.android.dialer.calllog.CallTypeHelper;
-import com.android.dialer.calllog.ContactInfo;
 import com.android.dialer.calllog.PhoneNumberHelper;
-import com.android.dialer.calllog.PhoneNumberUtilsWrapper;
 
 /**
  * Helper class to fill in the views in {@link PhoneCallDetailsViews}.
@@ -49,7 +46,6 @@ public class PhoneCallDetailsHelper {
     // Helper classes.
     private final CallTypeHelper mCallTypeHelper;
     private final PhoneNumberHelper mPhoneNumberHelper;
-    private final PhoneNumberUtilsWrapper mPhoneNumberUtilsWrapper;
 
     /**
      * Creates a new instance of the helper.
@@ -59,11 +55,10 @@ public class PhoneCallDetailsHelper {
      * @param resources used to look up strings
      */
     public PhoneCallDetailsHelper(Resources resources, CallTypeHelper callTypeHelper,
-            PhoneNumberUtilsWrapper phoneUtils) {
+            PhoneNumberHelper phoneNumberHelper) {
         mResources = resources;
         mCallTypeHelper = callTypeHelper;
-        mPhoneNumberHelper = new PhoneNumberHelper(resources);
-        mPhoneNumberUtilsWrapper = phoneUtils;
+        mPhoneNumberHelper = phoneNumberHelper;
     }
 
     /** Fills the call details views with content. */
@@ -75,7 +70,6 @@ public class PhoneCallDetailsHelper {
         for (int index = 0; index < count && index < MAX_CALL_TYPE_ICONS; ++index) {
             views.callTypeIcons.add(details.callTypes[index]);
         }
-        views.callTypeIcons.requestLayout();
         views.callTypeIcons.setVisibility(View.VISIBLE);
 
         // Show the total call count only if there are more than the maximum number of icons.
@@ -103,40 +97,36 @@ public class PhoneCallDetailsHelper {
         // Only show a label if the number is shown and it is not a SIP address.
         if (!TextUtils.isEmpty(details.number)
                 && !PhoneNumberUtils.isUriNumber(details.number.toString())) {
-            if (details.numberLabel == ContactInfo.GEOCODE_AS_LABEL) {
-                numberFormattedLabel = details.geocode;
-            } else {
-                numberFormattedLabel = Phone.getTypeLabel(mResources, details.numberType,
-                        details.numberLabel);
-            }
+            numberFormattedLabel = Phone.getTypeLabel(mResources, details.numberType,
+                    details.numberLabel);
         }
 
         final CharSequence nameText;
         final CharSequence numberText;
         final CharSequence labelText;
         final CharSequence displayNumber =
-            mPhoneNumberHelper.getDisplayNumber(details.number,
-                    details.numberPresentation, details.formattedNumber);
+            mPhoneNumberHelper.getDisplayNumber(details.number, details.formattedNumber);
         if (TextUtils.isEmpty(details.name)) {
             nameText = displayNumber;
             if (TextUtils.isEmpty(details.geocode)
-                    || mPhoneNumberUtilsWrapper.isVoicemailNumber(details.number)) {
+                    || mPhoneNumberHelper.isVoicemailNumber(details.number)) {
                 numberText = mResources.getString(R.string.call_log_empty_gecode);
             } else {
                 numberText = details.geocode;
             }
-            labelText = numberText;
+            labelText = null;
             // We have a real phone number as "nameView" so make it always LTR
             views.nameView.setTextDirection(View.TEXT_DIRECTION_LTR);
         } else {
             nameText = details.name;
             numberText = displayNumber;
-            labelText = TextUtils.isEmpty(numberFormattedLabel) ? numberText :
-                    numberFormattedLabel;
+            labelText = numberFormattedLabel;
+            // We have a real phone number as "numberView" so make it always LTR
+            views.numberView.setTextDirection(View.TEXT_DIRECTION_LTR);
         }
 
         views.nameView.setText(nameText);
-
+        views.numberView.setText(numberText);
         views.labelView.setText(labelText);
         views.labelView.setVisibility(TextUtils.isEmpty(labelText) ? View.GONE : View.VISIBLE);
     }
@@ -145,7 +135,7 @@ public class PhoneCallDetailsHelper {
     public void setCallDetailsHeader(TextView nameView, PhoneCallDetails details) {
         final CharSequence nameText;
         final CharSequence displayNumber =
-            mPhoneNumberHelper.getDisplayNumber(details.number, details.numberPresentation,
+                mPhoneNumberHelper.getDisplayNumber(details.number,
                         mResources.getString(R.string.recentCalls_addToContact));
         if (TextUtils.isEmpty(details.name)) {
             nameText = displayNumber;
