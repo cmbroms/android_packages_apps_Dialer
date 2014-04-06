@@ -15,19 +15,24 @@
      limitations under the License.
 -->
 
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<view
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:ex="http://schemas.android.com/apk/res/com.android.dialer"
+    class="com.android.dialer.calllog.CallLogListItemView"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical" >
+    android:id="@+id/call_log_list_item"
+    android:orientation="vertical"
+    android:background="@drawable/bottom_border_background"
+>
 
     <GridLayout
         android:id="@+id/primary_action_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_centerVertical="true"
-        android:layout_marginLeft="@dimen/call_log_outer_margin"
-        android:layout_marginRight="@dimen/call_log_outer_margin"
+        android:layout_marginStart="@dimen/call_log_outer_margin"
+        android:layout_marginEnd="@dimen/call_log_outer_margin"
         android:background="?android:attr/selectableItemBackground"
         android:columnCount="3"
         android:focusable="true"
@@ -46,28 +51,29 @@
         <TextView
             android:id="@+id/name"
             android:layout_width="wrap_content"
-            android:layout_marginLeft="@dimen/call_log_inner_margin"
+            android:layout_marginStart="@dimen/call_log_inner_margin"
             android:layout_marginTop="@dimen/call_log_icon_margin"
             android:ellipsize="marquee"
             android:singleLine="true"
-            android:textColor="@color/call_log_primary_text_color"
+            android:textColor="?attr/call_log_primary_text_color"
             android:textSize="18sp" />
 
         <TextView
             android:id="@+id/percent"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="right|bottom"
-            android:textColor="@color/call_log_secondary_text_color"
+            android:layout_gravity="fill_horizontal|bottom"
+            android:gravity="end"
+            android:textColor="?attr/call_log_secondary_text_color"
             android:textSize="14sp" />
 
-        <com.android.dialer.callstats.LinearColorBar
+        <com.android.dialer.widget.LinearColorBar
             android:id="@+id/percent_bar"
             android:layout_height="10dp"
             android:layout_columnSpan="2"
             android:layout_gravity="fill_horizontal"
             android:layout_marginBottom="@dimen/call_log_icon_margin"
-            android:layout_marginLeft="@dimen/call_log_inner_margin"
+            android:layout_marginStart="@dimen/call_log_inner_margin"
             android:layout_marginTop="@dimen/call_log_icon_margin"
             android:orientation="horizontal"
             android:paddingEnd="4dp"
@@ -81,38 +87,30 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_columnSpan="2"
-            android:layout_marginLeft="@dimen/call_log_inner_margin"
+            android:layout_marginStart="@dimen/call_log_inner_margin"
             android:orientation="horizontal" >
 
             <TextView
                 android:id="@+id/number"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginRight="@dimen/call_log_icon_margin"
+                android:layout_marginEnd="@dimen/call_log_icon_margin"
                 android:ellipsize="marquee"
                 android:singleLine="true"
-                android:textColor="@color/call_log_secondary_text_color"
+                android:textColor="?attr/call_log_secondary_text_color"
                 android:textSize="14sp" />
 
             <TextView
                 android:id="@+id/label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginRight="@dimen/call_log_icon_margin"
+                android:layout_marginEnd="@dimen/call_log_icon_margin"
                 android:ellipsize="marquee"
                 android:singleLine="true"
-                android:textColor="@color/call_log_secondary_text_color"
+                android:textColor="?attr/call_log_secondary_text_color"
                 android:textSize="14sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </GridLayout>
 
-    <View
-        android:id="@+id/call_stats_divider"
-        android:layout_width="match_parent"
-        android:layout_height="1px"
-        android:layout_marginLeft="@dimen/call_log_outer_margin"
-        android:layout_marginRight="@dimen/call_log_outer_margin"
-        android:background="@color/call_log_divider" />
-
-</LinearLayout>
+</view>

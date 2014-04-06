@@ -15,10 +15,11 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="call_log_stats_title">Estadístiques</string>
     <string name="callStatsDetailTitle">Detalls de les trucades</string>
-    <string name="call_stats">Estadístiques de trucades</string>
+    <string name="call_stats">Estadístiques de les trucades</string>
     <string name="call_stats_refresh">Refresca</string>
-    <string name="activity_title_call_stats">Estadístiques de trucades</string>
+    <string name="activity_title_call_stats">Estadístiques de les trucades</string>
     <string name="call_stats_nav_all">Totes</string>
     <string name="call_stats_nav_incoming">Entrants</string>
     <string name="call_stats_nav_outgoing">Sortints</string>
@@ -30,20 +31,21 @@
     <string name="call_stats_header_total">Total: <xliff:g id="call_count">%s</xliff:g>, <xliff:g id="duration">%s</xliff:g></string>
     <string name="call_stats_header_total_callsonly">Total: <xliff:g id="call_count">%s</xliff:g></string>
     <string name="call_stats_filter_from">Data d\'inici</string>
-    <string name="call_stats_filter_to">Data de fi</string>
-    <string name="call_stats_filter_picker_title">Filtra abast</string>
-    <string name="date_quick_selection">Selecció rápida</string>
+    <string name="call_stats_filter_to">Data de final</string>
+    <string name="call_stats_filter_picker_title">Rang del filtre</string>
+    <string name="date_quick_selection">Selecció ràpida</string>
     <string name="date_qs_currentmonth">Mes actual</string>
-    <string name="date_qs_currentquarter">Quart d\'any actual</string>
+    <string name="date_qs_currentquarter">Quatrimestre actual</string>
     <string name="date_qs_currentyear">Any actual</string>
-    <string name="date_qs_lastweek">Darrera setmana</string>
-    <string name="date_qs_lastmonth">Darrer mes</string>
-    <string name="date_qs_lastquarter">Darrer quart d\'any</string>
-    <string name="date_qs_lastyear">Darrer any</string>
-    <string name="call_stats_date_filter">Adjusta l\'abast de l\'hora</string>
-    <string name="call_stats_reset_filter">Reseteja l\'abast de l\'hora</string>
+    <string name="date_qs_lastweek">Setmana passada</string>
+    <string name="date_qs_lastmonth">Mes passat</string>
+    <string name="date_qs_lastquarter">Quatrimestre passat</string>
+    <string name="date_qs_lastyear">Any passat</string>
+    <string name="call_stats_date_filter">Ajusta el rang del temps</string>
+    <string name="call_stats_reset_filter">Reinicia el rang del temps</string>
     <string name="call_stats_sort_by_duration">Ordena per duració de trucada</string>
     <string name="call_stats_sort_by_count">Ordena per nombre de trucades</string>
     <string name="menu_add_to_blacklist">Afegeix a la llista negra</string>
-    <string name="toast_added_to_blacklist">%s afegit a la llista negra.</string>
+    <string name="toast_added_to_blacklist">%s afegits a la llista negra.</string>
+    <string name="call_log_activity_title">Historial</string>
 </resources>

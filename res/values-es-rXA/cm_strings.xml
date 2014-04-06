@@ -15,9 +15,7 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="menu_add_to_blacklist">Amestar a la llista prieta</string>
-    <string name="toast_added_to_blacklist">%s amestáu a la llista prieta.</string>
-    <string name="dial_conference">Marcar conferencia</string>
+    <string name="call_log_stats_title">Estadístiques</string>
     <string name="callStatsDetailTitle">Detalles de llamada</string>
     <string name="call_stats">Estadístiques de llamaes</string>
     <string name="call_stats_refresh">Anovar</string>
@@ -47,4 +45,6 @@
     <string name="call_stats_reset_filter">Restablecer rangu de dates</string>
     <string name="call_stats_sort_by_duration">Ordenar por duración</string>
     <string name="call_stats_sort_by_count">Ordenar por númb. llamaes</string>
+    <string name="menu_add_to_blacklist">Amestar a la llista prieta</string>
+    <string name="toast_added_to_blacklist">%s amestáu a la llista prieta.</string>
 </resources>

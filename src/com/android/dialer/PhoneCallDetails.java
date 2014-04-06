@@ -20,14 +20,14 @@ import android.net.Uri;
 import android.provider.CallLog.Calls;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
 
-import com.android.dialer.CallDetailHeader;
-
 /**
  * The details of a phone call to be shown in the UI.
  */
 public class PhoneCallDetails implements CallDetailHeader.Data {
     /** The number of the other party involved in the call. */
     public final CharSequence number;
+    /** The number presenting rules set by the network, e.g., {@link Calls#PRESENTATION_ALLOWED} */
+    public final int numberPresentation;
     /** The formatted version of {@link #number}. */
     public final CharSequence formattedNumber;
     /** The country corresponding with the phone number. */
@@ -61,18 +61,21 @@ public class PhoneCallDetails implements CallDetailHeader.Data {
     public final Uri photoUri;
 
     /** Create the details for a call with a number not associated with a contact. */
-    public PhoneCallDetails(CharSequence number, CharSequence formattedNumber,
-            String countryIso, String geocode, int[] callTypes, long date, long duration) {
-        this(number, formattedNumber, countryIso, geocode, callTypes, date, duration, "", 0, "",
-                null, null);
+    public PhoneCallDetails(CharSequence number, int numberPresentation,
+            CharSequence formattedNumber, String countryIso, String geocode,
+            int[] callTypes, long date, long duration) {
+        this(number, numberPresentation, formattedNumber, countryIso, geocode,
+                callTypes, date, duration, "", 0, "", null, null);
     }
 
     /** Create the details for a call with a number associated with a contact. */
-    public PhoneCallDetails(CharSequence number, CharSequence formattedNumber,
-            String countryIso, String geocode, int[] callTypes, long date, long duration,
-            CharSequence name, int numberType, CharSequence numberLabel, Uri contactUri,
+    public PhoneCallDetails(CharSequence number, int numberPresentation,
+            CharSequence formattedNumber, String countryIso, String geocode,
+            int[] callTypes, long date, long duration, CharSequence name,
+            int numberType, CharSequence numberLabel, Uri contactUri,
             Uri photoUri) {
         this.number = number;
+        this.numberPresentation = numberPresentation;
         this.formattedNumber = formattedNumber;
         this.countryIso = countryIso;
         this.geocode = geocode;
@@ -93,6 +96,10 @@ public class PhoneCallDetails implements CallDetailHeader.Data {
     @Override
     public CharSequence getNumber() {
         return number;
+    }
+    @Override
+    public int getNumberPresentation() {
+        return numberPresentation;
     }
     @Override
     public int getNumberType() {

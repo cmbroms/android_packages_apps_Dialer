@@ -31,6 +31,7 @@ import com.android.dialer.calllog.ContactInfo;
  */
 public class CallStatsDetails implements CallDetailHeader.Data, Parcelable {
     public final String number;
+    public final int numberPresentation;
     public String formattedNumber;
     public final String countryIso;
     public final String geocode;
@@ -47,9 +48,10 @@ public class CallStatsDetails implements CallDetailHeader.Data, Parcelable {
     public int outgoingCount;
     public int missedCount;
 
-    public CallStatsDetails(CharSequence number, ContactInfo info,
-            String countryIso, String geocode, long date) {
+    public CallStatsDetails(CharSequence number, int numberPresentation,
+            ContactInfo info, String countryIso, String geocode, long date) {
         this.number = number != null ? number.toString() : null;
+        this.numberPresentation = numberPresentation;
         this.countryIso = countryIso;
         this.geocode = geocode;
         this.date = date;
@@ -68,6 +70,10 @@ public class CallStatsDetails implements CallDetailHeader.Data, Parcelable {
     @Override
     public CharSequence getNumber() {
         return number;
+    }
+    @Override
+    public int getNumberPresentation() {
+        return numberPresentation;
     }
     @Override
     public int getNumberType() {
@@ -181,6 +187,7 @@ public class CallStatsDetails implements CallDetailHeader.Data, Parcelable {
     @Override
     public void writeToParcel(Parcel out, int flags) {
         out.writeString(number);
+        out.writeInt(numberPresentation);
         out.writeString(formattedNumber);
         out.writeString(countryIso);
         out.writeString(geocode);
@@ -211,6 +218,7 @@ public class CallStatsDetails implements CallDetailHeader.Data, Parcelable {
 
     private CallStatsDetails (Parcel in) {
         number = in.readString();
+        numberPresentation = in.readInt();
         formattedNumber = in.readString();
         countryIso = in.readString();
         geocode = in.readString();
@@ -227,5 +235,4 @@ public class CallStatsDetails implements CallDetailHeader.Data, Parcelable {
         outgoingCount = in.readInt();
         missedCount = in.readInt();
     }
-
 }

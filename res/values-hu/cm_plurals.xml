@@ -16,19 +16,19 @@
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <plurals name="hour">
-        <item quantity="one">1 óra</item>
+        <item quantity="one">%d óra</item>
         <item quantity="other">%d óra</item>
     </plurals>
     <plurals name="minute">
-        <item quantity="one">1 perc</item>
+        <item quantity="one">%d perc</item>
         <item quantity="other">%d perc</item>
     </plurals>
     <plurals name="second">
-        <item quantity="one">1 másodperc</item>
+        <item quantity="one">%d másodperc</item>
         <item quantity="other">%d másodperc</item>
     </plurals>
     <plurals name="call">
-        <item quantity="one">1 hívás</item>
+        <item quantity="one">%d hívás</item>
         <item quantity="other">%d hívás</item>
     </plurals>
 </resources>

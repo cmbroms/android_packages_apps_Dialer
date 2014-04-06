@@ -15,6 +15,7 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="call_log_stats_title">Statistiken</string>
     <string name="callStatsDetailTitle">Anrufstatistikdetails</string>
     <string name="call_stats">Anrufstatistik</string>
     <string name="call_stats_refresh">Aktualisieren</string>
@@ -45,6 +46,23 @@
     <string name="date_qs_lastquarter">Letztes Quartal</string>
     <string name="date_qs_lastyear">Letztes Jahr</string>
     <string name="menu_add_to_blacklist">Zur Sperrliste hinzufügen</string>
-    <string name="toast_added_to_blacklist">%s wurde zur Sperrliste hinzugefügt.</string>
-    <string name="dial_conference">Konferenzanruf</string>
+    <string name="toast_added_to_blacklist">%s wurde zur Sperrliste hinzugefügt</string>
+
+  <!-- AOSP strings Google forgot to mark as translatable=false -->
+    <string name="call_log_activity_title_font_family">sans-serif-light</string>
+    <string name="show_all_contacts_title_font_family">sans-serif-light</string>
+    <string name="dialpad_star_number">*</string>
+    <string name="dialpad_pound_number">#</string>
+    <string name="dialpad_0_letters">+</string>
+    <string name="dialpad_1_letters"></string>
+    <string name="dialpad_2_letters">ABC</string>
+    <string name="dialpad_3_letters">DEF</string>
+    <string name="dialpad_4_letters">GHI</string>
+    <string name="dialpad_5_letters">JKL</string>
+    <string name="dialpad_6_letters">MNO</string>
+    <string name="dialpad_7_letters">PQRS</string>
+    <string name="dialpad_8_letters">TUV</string>
+    <string name="dialpad_9_letters">WXYZ</string>
+    <string name="dialpad_star_letters"></string>
+    <string name="dialpad_pound_letters"></string>
 </resources>

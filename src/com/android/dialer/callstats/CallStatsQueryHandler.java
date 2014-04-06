@@ -166,11 +166,13 @@ public class CallStatsQueryHandler extends AsyncQueryHandler {
 
             if (pending == null || !CallUtil.phoneNumbersEqual(pending.number.toString(), number)) {
                 final long date = cursor.getLong(CallStatsQuery.DATE);
+                final int numberPresentation = cursor.getInt(CallStatsQuery.NUMBER_PRESENTATION);
                 final String countryIso = cursor.getString(CallStatsQuery.COUNTRY_ISO);
                 final String geocode = cursor.getString(CallStatsQuery.GEOCODED_LOCATION);
                 final ContactInfo info = getContactInfoFromCallStats(cursor);
 
-                pending = new CallStatsDetails(number, info, countryIso, geocode, date);
+                pending = new CallStatsDetails(number, numberPresentation,
+                        info, countryIso, geocode, date);
                 infos.add(info);
                 calls.add(pending);
             }

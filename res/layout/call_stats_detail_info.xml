@@ -16,10 +16,11 @@
 -->
 
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:ex="http://schemas.android.com/apk/res/com.android.dialer"
     android:id="@+id/call_stats_info"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:layout_marginLeft="@dimen/call_detail_contact_name_margin"
+    android:layout_marginStart="@dimen/call_detail_contact_name_margin"
     android:layout_marginTop="@dimen/call_log_outer_margin" >
 
     <TextView
@@ -49,7 +50,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_below="@id/date_filter"
-            android:layout_marginLeft="@dimen/call_log_icon_margin"
+            android:layout_marginStart="@dimen/call_log_icon_margin"
             android:textAppearance="?android:attr/textAppearanceSmall"
             android:textColor="@color/secondary_text_color" />
 
@@ -64,19 +65,20 @@
         android:textAppearance="?android:attr/textAppearanceSmall"
         android:textColor="@color/secondary_text_color" />
 
-    <com.android.dialer.callstats.PieChartView
+    <com.android.dialer.widget.PieChartView
         android:id="@+id/pie_chart"
         android:layout_width="@dimen/call_stats_details_chart_size"
         android:layout_height="@dimen/call_stats_details_chart_size"
-        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true"
         android:layout_centerVertical="true"
-        android:layout_below="@id/total_duration" />
+        android:layout_below="@id/total_duration"
+        ex:outlineColor="@color/call_stats_bar_background" />
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_toLeftOf="@id/pie_chart"
+        android:layout_alignParentStart="true"
+        android:layout_toStartOf="@id/pie_chart"
         android:layout_below="@id/total_duration"
         android:divider="?android:attr/dividerHorizontal"
         android:orientation="vertical"
@@ -105,7 +107,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginLeft="@dimen/call_log_icon_margin"
+                    android:layout_marginStart="@dimen/call_log_icon_margin"
                     android:textAppearance="?android:attr/textAppearanceSmall"
                     android:textColor="@color/secondary_text_color" />
 
@@ -150,7 +152,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginLeft="@dimen/call_log_icon_margin"
+                    android:layout_marginStart="@dimen/call_log_icon_margin"
                     android:textAppearance="?android:attr/textAppearanceSmall"
                     android:textColor="@color/secondary_text_color" />
 
@@ -193,7 +195,7 @@
                     android:id="@+id/missed_summary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="@dimen/call_log_icon_margin"
+                    android:layout_marginStart="@dimen/call_log_icon_margin"
                     android:textAppearance="?android:attr/textAppearanceSmall"
                     android:textColor="@color/secondary_text_color" />
 

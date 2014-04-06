@@ -24,7 +24,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
-        android:paddingLeft="8dp" />
+        android:paddingStart="8dp" />
 
     <TextView
         android:id="@+id/call_stats_nav_text"
