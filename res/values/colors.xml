@@ -38,7 +38,7 @@
     <color name="call_log_missed_call_highlight_color">#FF777777</color>
 
     <!-- Color of the text describing an unconsumed voicemail. -->
-    <color name="call_log_voicemail_highlight_color">#ff33b5e5</color>
+    <color name="call_log_voicemail_highlight_color">#ff3b77e7</color>
 
     <!--
          Colour of voicemail progress bar to the right of position indicator.
@@ -158,9 +158,9 @@
     <color name="call_log_primary_background_color">#000000</color>
     <color name="call_log_secondary_text_color">#888888</color>
     <color name="call_log_secondary_background_color">#000000</color>
-    <color name="call_log_header_color">#33b5e5</color>
+    <color name="call_log_header_color">#3b77e7</color>
     <color name="call_log_voicemail_status_background_color">#262626</color>
     <color name="call_log_voicemail_status_text_color">#888888</color>
-    <color name="call_log_voicemail_status_action_text_color">#33b5e5</color>
+    <color name="call_log_voicemail_status_action_text_color">#3b77e7</color>
     <color name="dialtacts_frame_color">#33999999</color>
 </resources>
