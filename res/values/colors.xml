@@ -65,11 +65,11 @@
     <color name="dialpad_call_button_color">#ff3b77e7</color>
 
     <!-- Background color of action bars -->
-    <color name="actionbar_background_color">#ff222222</color>
+    <color name="actionbar_background_color">#ff3b77e7</color>
 
     <!-- Underline color of action bars.  Ensure this stays in sync with packages/Telephony
          actionbar_underline. -->
-    <color name="actionbar_underline">#ff222222</color>
+    <color name="actionbar_underline">#ff3b77e7</color>
 
     <!-- Color of the 1dp divider that separates favorites -->
     <color name="favorite_contacts_separator_color">#8a8a8a</color>
@@ -106,19 +106,19 @@
     <color name="all_contacts_button_pressed_color">#9f9f9f</color>
 
     <!-- Background color for the favorites menu. -->
-    <color name="favorites_menu_background_color">#222222</color>
+    <color name="favorites_menu_background_color">#3b77e7</color>
 
     <!-- Text color for the "All Contacts" button above the favorite callers -->
     <color name="all_contacts_button_text_color">#ffffff</color>
 
     <!-- Background gradient start color for tabs in an unpressed state. -->
-    <color name="tab_background_gradient_start_color">#222222</color>
+    <color name="tab_background_gradient_start_color">#3b77e7</color>
 
     <!-- Background gradient end color for tabs in an unpressed state. -->
     <color name="tab_background_gradient_end_color">#777777</color>
 
     <!-- Background gradient start color for tabs in a pressed state. -->
-    <color name="tab_background_gradient_start_pressed_color">#222222</color>
+    <color name="tab_background_gradient_start_pressed_color">#3b77e7</color>
 
     <!-- Background gradient end color for tabs in a pressed state. -->
     <color name="tab_background_gradient_end_pressed_color">#777777</color>
