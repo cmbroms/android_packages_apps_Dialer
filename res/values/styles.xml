@@ -110,7 +110,7 @@
         <item name="android:windowActionBarOverlay">true</item>
     </style>
 
-    <style name="CallDetailActivityTheme" parent="android:Theme.Holo">
+    <style name="CallDetailActivityTheme1" parent="android:Theme.Holo">
         <item name="android:windowBackground">@color/background_dialer_list_items</item>
         <item name="android:gravity">top</item>
         <item name="android:listViewStyle">@style/ListViewStyle</item>
