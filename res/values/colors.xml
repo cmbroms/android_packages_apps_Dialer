@@ -97,7 +97,7 @@
     <color name="remove_highlighted_text_color">#FF3F3B</color>
 
     <!-- Text color for the "speed dial" label in the favorites menu. -->
-    <color name="speed_dial_text_color">#fffff</color>
+    <color name="speed_dial_text_color">#ffffff</color>
 
     <!-- Background color for the "All Contacts" button in the favorites menu. -->
     <color name="all_contacts_button_color">#e2e2e2</color>
