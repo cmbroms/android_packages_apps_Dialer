@@ -118,13 +118,13 @@
     <color name="tab_background_gradient_start_color">#222222</color>
 
     <!-- Background gradient end color for tabs in an unpressed state. -->
-    <color name="tab_background_gradient_end_color">#777777</color>
+    <color name="tab_background_gradient_end_color">#222222</color>
 
     <!-- Background gradient start color for tabs in a pressed state. -->
     <color name="tab_background_gradient_start_pressed_color">#222222</color>
 
     <!-- Background gradient end color for tabs in a pressed state. -->
-    <color name="tab_background_gradient_end_pressed_color">#777777</color>
+    <color name="tab_background_gradient_end_pressed_color">#222222</color>
 
     <!-- Color of the underline for a tab which is selected. -->
     <color name="tab_underline_selected_color">#3265c1</color>
