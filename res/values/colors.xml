@@ -50,7 +50,7 @@
     <color name="voicemail_playback_seek_bar_already_played">#ccffffff</color>
 
     <!-- Standard color for selected items. -->
-    <color name="item_selected">#660099cc</color>
+    <color name="item_selected">#663b77e7</color>
 
     <!-- Background color of new dialer activity -->
     <color name="background_dialer_light">#000000</color>
