@@ -155,7 +155,7 @@
         android:layout_height="match_parent"
         android:layout_width="@dimen/fake_action_bar_height"
         android:id="@+id/fake_action_bar"
-        android:background="@color/actionbar_color">
+        android:background="@color/actionbar_background_color">
         <ImageButton
             android:id="@+id/call_history_button"
             android:layout_width="match_parent"
