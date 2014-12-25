@@ -46,6 +46,7 @@ import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
@@ -66,10 +67,14 @@ public class DialerDatabaseHelper extends SQLiteOpenHelper {
     private static final AtomicBoolean sInUpdate = new AtomicBoolean(false);
     private final Context mContext;
 
+    private Class mMultiMatchClass;
+    private Object mMultiMatchObject;
+    private Method mMultiMatchMethod;
+
     /**
      * SmartDial DB version ranges:
      * <pre>
-     *   0-98   KeyLimePie
+     *   0-98   KitKat
      * </pre>
      */
     public static final int DATABASE_VERSION = 70004;
@@ -82,7 +87,7 @@ public class DialerDatabaseHelper extends SQLiteOpenHelper {
     private static final String LAST_UPDATED_MILLIS = "last_updated_millis";
     private static final String DATABASE_VERSION_PROPERTY = "database_version";
 
-    private static final int MAX_ENTRIES = 20;
+    private static final int MAX_ENTRIES = 40;
 
     public interface Tables {
         /** Saves the necessary smart dial information of all contacts. */
@@ -342,6 +347,33 @@ public class DialerDatabaseHelper extends SQLiteOpenHelper {
         mContext = Preconditions.checkNotNull(context, "Context must not be null");
     }
 
+    private void initMultiLanguageSearch() {
+        try {
+            if (mMultiMatchClass == null) {
+                mMultiMatchClass = Class
+                        .forName("com.qualcomm.qti.smartsearch.SmartMatch");
+                Log.d(TAG, "create multi match success");
+            }
+            if (mMultiMatchObject == null && mMultiMatchClass != null) {
+                mMultiMatchObject = mMultiMatchClass.newInstance();
+            }
+            if (mMultiMatchMethod == null && mMultiMatchClass != null) {
+                mMultiMatchMethod = mMultiMatchClass.getDeclaredMethod(
+                        "getMatchStringIndex", String.class, String.class,
+                        int.class);
+            }
+        } catch (Exception e) {
+        }
+    }
+
+    public Object getMultiMatchObject() {
+        return mMultiMatchObject;
+    }
+
+    public Method getMultiMatchMethod() {
+        return mMultiMatchMethod;
+    }
+
     /**
      * Creates tables in the database when database is created for the first time.
      *
@@ -444,17 +476,19 @@ public class DialerDatabaseHelper extends SQLiteOpenHelper {
 
     public String getProperty(SQLiteDatabase db, String key, String defaultValue) {
         try {
+            String value = null;
             final Cursor cursor = db.query(Tables.PROPERTIES,
                     new String[] {PropertiesColumns.PROPERTY_VALUE},
                             PropertiesColumns.PROPERTY_KEY + "=?",
                     new String[] {key}, null, null, null);
-            String value = null;
-            try {
-                if (cursor.moveToFirst()) {
-                    value = cursor.getString(0);
+            if (cursor != null) {
+                try {
+                    if (cursor.moveToFirst()) {
+                        value = cursor.getString(0);
+                    }
+                } finally {
+                    cursor.close();
                 }
-            } finally {
-                cursor.close();
             }
             return value != null ? value : defaultValue;
         } catch (SQLiteException e) {
@@ -512,48 +546,6 @@ public class DialerDatabaseHelper extends SQLiteOpenHelper {
             super.onPostExecute(o);
         }
     }
-
-    /**
-     * Deletes all smart dial data and recreates it from contacts
-     */
-    public void recreateSmartDialDatabaseInBackground() { new SmartDialRecreateAsyncTask().execute(); }
-
-    private class SmartDialRecreateAsyncTask extends AsyncTask {
-        @Override
-        protected Object doInBackground(Object[] objects) {
-            if (DEBUG) {
-                Log.v(TAG, "Recreating database");
-            }
-
-            // reset last updated so that we query for all contacts
-            resetSmartDialLastUpdatedTime();
-
-            // clear all contacts
-            final SQLiteDatabase db = getWritableDatabase();
-            removeAllContacts(db);
-
-            // repopulate
-            updateSmartDialDatabase();
-            return null;
-        }
-
-        @Override
-        protected void onCancelled() {
-            if (DEBUG) {
-                Log.v(TAG, "Recreate Cancelled");
-            }
-            super.onCancelled();
-        }
-
-        @Override
-        protected void onPostExecute(Object o) {
-            if (DEBUG) {
-                Log.v(TAG, "Recreate Finished");
-            }
-            super.onPostExecute(o);
-        }
-    }
-
     /**
      * Removes rows in the smartdial database that matches the contacts that have been deleted
      * by other apps since last update.
@@ -792,6 +784,8 @@ public class DialerDatabaseHelper extends SQLiteOpenHelper {
      * update.
      */
     public void updateSmartDialDatabase() {
+        initMultiLanguageSearch();
+
         final SQLiteDatabase db = getWritableDatabase();
 
         synchronized(mLock) {
@@ -815,14 +809,6 @@ public class DialerDatabaseHelper extends SQLiteOpenHelper {
             final Cursor updatedContactCursor = mContext.getContentResolver().query(PhoneQuery.URI,
                     PhoneQuery.PROJECTION, PhoneQuery.SELECTION,
                     new String[]{lastUpdateMillis}, null);
-
-            /** Sets the time after querying the database as the current update time. */
-            final Long currentMillis = System.currentTimeMillis();
-
-            if (DEBUG) {
-                stopWatch.lap("Queried the Contacts database");
-            }
-
             if (updatedContactCursor == null) {
                 if (DEBUG) {
                     Log.e(TAG, "SmartDial query received null for cursor");
@@ -830,18 +816,25 @@ public class DialerDatabaseHelper extends SQLiteOpenHelper {
                 return;
             }
 
-            /** Prevents the app from reading the dialer database when updating. */
-            sInUpdate.getAndSet(true);
-
-            /** Removes contacts that have been deleted. */
-            removeDeletedContacts(db, lastUpdateMillis);
-            removePotentiallyCorruptedContacts(db, lastUpdateMillis);
-
-            if (DEBUG) {
-                stopWatch.lap("Finished deleting deleted entries");
-            }
+            /** Sets the time after querying the database as the current update time. */
+            final Long currentMillis = System.currentTimeMillis();
 
             try {
+                if (DEBUG) {
+                    stopWatch.lap("Queried the Contacts database");
+                }
+
+                /** Prevents the app from reading the dialer database when updating. */
+                sInUpdate.getAndSet(true);
+
+                /** Removes contacts that have been deleted. */
+                removeDeletedContacts(db, lastUpdateMillis);
+                removePotentiallyCorruptedContacts(db, lastUpdateMillis);
+
+                if (DEBUG) {
+                    stopWatch.lap("Finished deleting deleted entries");
+                }
+
                 /** If the database did not exist before, jump through deletion as there is nothing
                  * to delete.
                  */
@@ -875,12 +868,12 @@ public class DialerDatabaseHelper extends SQLiteOpenHelper {
                     " WHERE " + SmartDialDbColumns.LAST_SMARTDIAL_UPDATE_TIME +
                     " = " + Long.toString(currentMillis),
                     new String[] {});
-            if (DEBUG) {
-                stopWatch.lap("Queried the smart dial table for contact names");
-            }
-
             if (nameCursor != null) {
                 try {
+                    if (DEBUG) {
+                        stopWatch.lap("Queried the smart dial table for contact names");
+                    }
+
                     /** Inserts prefixes of names into the prefix table.*/
                     insertNamePrefixes(db, nameCursor);
                     if (DEBUG) {
@@ -957,7 +950,7 @@ public class DialerDatabaseHelper extends SQLiteOpenHelper {
         final SQLiteDatabase db = getReadableDatabase();
 
         /** Uses SQL query wildcard '%' to represent prefix matching.*/
-        final String looseQuery = query + "%";
+        //final String looseQuery = query + "%";
 
         final ArrayList<ContactNumber> result = Lists.newArrayList();
 
@@ -973,33 +966,30 @@ public class DialerDatabaseHelper extends SQLiteOpenHelper {
                 SmartDialDbColumns.NUMBER + ", " +
                 SmartDialDbColumns.CONTACT_ID + ", " +
                 SmartDialDbColumns.LOOKUP_KEY +
-                " FROM " + Tables.SMARTDIAL_TABLE + " WHERE " +
-                SmartDialDbColumns.CONTACT_ID + " IN " +
-                    " (SELECT " + PrefixColumns.CONTACT_ID +
-                    " FROM " + Tables.PREFIX_TABLE +
-                    " WHERE " + Tables.PREFIX_TABLE + "." + PrefixColumns.PREFIX +
-                    " LIKE '" + looseQuery + "')" +
+                " FROM " + Tables.SMARTDIAL_TABLE +
                 " ORDER BY " + SmartDialSortingOrder.SORT_ORDER,
                 new String[] {currentTimeStamp});
-
-        if (DEBUG) {
-            stopWatch.lap("Prefix query completed");
+        if (cursor == null) {
+            return result;
         }
-
-        /** Gets the column ID from the cursor.*/
-        final int columnDataId = 0;
-        final int columnDisplayNamePrimary = 1;
-        final int columnPhotoId = 2;
-        final int columnNumber = 3;
-        final int columnId = 4;
-        final int columnLookupKey = 5;
-        if (DEBUG) {
-            stopWatch.lap("Found column IDs");
-        }
-
-        final Set<ContactMatch> duplicates = new HashSet<ContactMatch>();
-        int counter = 0;
         try {
+            if (DEBUG) {
+                stopWatch.lap("Prefix query completed");
+            }
+
+            /** Gets the column ID from the cursor.*/
+            final int columnDataId = 0;
+            final int columnDisplayNamePrimary = 1;
+            final int columnPhotoId = 2;
+            final int columnNumber = 3;
+            final int columnId = 4;
+            final int columnLookupKey = 5;
+            if (DEBUG) {
+                stopWatch.lap("Found column IDs");
+            }
+
+            final Set<ContactMatch> duplicates = new HashSet<ContactMatch>();
+            int counter = 0;
             if (DEBUG) {
                 stopWatch.lap("Moved cursor to start");
             }
@@ -1034,7 +1024,7 @@ public class DialerDatabaseHelper extends SQLiteOpenHelper {
                             photoId));
                     counter++;
                     if (DEBUG) {
-                        stopWatch.lap("Added one result");
+                        stopWatch.lap("Added one result: Name: " + displayName);
                     }
                 }
             }

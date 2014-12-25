@@ -275,7 +275,6 @@ public class LookupProvider extends ContentProvider {
 
             return locationManager.getLastLocation();
         } catch (IllegalArgumentException e) {
-            // If no location service exists, IllegalArgument exception is thrown
             return null;
         }
     }

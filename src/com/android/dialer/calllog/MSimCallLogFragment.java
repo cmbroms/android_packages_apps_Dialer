@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2013-2014, The Linux Foundation. All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are
@@ -34,7 +34,6 @@ import android.content.Context;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.provider.CallLog.Calls;
-import android.telephony.MSimTelephonyManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.util.Log;
@@ -50,7 +49,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import com.android.dialer.DialtactsActivity;
+import com.android.contacts.common.MoreContactUtils;
 import com.android.dialer.R;
 import com.android.dialer.voicemail.VoicemailStatusHelperImpl;
 import com.google.common.annotations.VisibleForTesting;
@@ -141,7 +140,7 @@ public class MSimCallLogFragment extends CallLogFragment {
         if (activity != null) {
             // This is so that the options menu content is updated.
             activity.invalidateOptionsMenu();
-            updateFilterSpinnierViews();
+            updateFilterSpinnerViews();
         }
     }
 
@@ -157,7 +156,7 @@ public class MSimCallLogFragment extends CallLogFragment {
         mFilterStatusSpinnerView = (Spinner) view.findViewById(R.id.filter_status_spinner);
 
         // Update the filter views.
-        updateFilterSpinnierViews();
+        updateFilterSpinnerViews();
 
         return view;
     }
@@ -176,31 +175,22 @@ public class MSimCallLogFragment extends CallLogFragment {
     /**
      * Initialize the filter views content.
      */
-    private void updateFilterSpinnierViews() {
+    private void updateFilterSpinnerViews() {
         if (mFilterSubSpinnerView == null
                 || mFilterStatusSpinnerView == null) {
-            Log.w(TAG, "The filter view is null, please pay attention!");
+            Log.w(TAG, "The filter spinner view is null!");
             return;
         }
 
-        // As the default, the view for filter sub will be visible. But if there is only one
-        // SIM, the view for filter sub needn't display, set it as gone.
-        if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-            mCallSubFilter = getSelectedSub();
-            mFilterSubSpinnerView.setVisibility(View.VISIBLE);
+        // Update the sub filter's content.
+        mCallSubFilter = getSelectedSub();
+        ArrayAdapter<SpinnerContent> filterSubAdapter = new ArrayAdapter<SpinnerContent>(
+                this.getActivity(), R.layout.call_log_spinner_item, setupSubFilterContent());
+        mFilterSubSpinnerView.setAdapter(filterSubAdapter);
+        mFilterSubSpinnerView.setOnItemSelectedListener(mSubSelectedListener);
+        SpinnerContent.setSpinnerContentValue(mFilterSubSpinnerView, mCallSubFilter);
 
-            ArrayAdapter<SpinnerContent> filterSubAdapter = new ArrayAdapter<SpinnerContent>(
-                    this.getActivity(), R.layout.call_log_spinner_item, setupSubFilterContent());
-            mFilterSubSpinnerView.setAdapter(filterSubAdapter);
-            mFilterSubSpinnerView.setOnItemSelectedListener(mSubSelectedListener);
-            SpinnerContent.setSpinnerContentValue(mFilterSubSpinnerView, mCallSubFilter);
-        } else {
-            // There is only one SIM, needn't to show this filter.
-            mCallSubFilter = CallLogQueryHandler.CALL_SUB_ALL;
-            mFilterSubSpinnerView.setVisibility(View.GONE);
-        }
-
-        // Update the filter status content.
+        // Update the status filter's content.
         ArrayAdapter<SpinnerContent> filterStatusAdapter = new ArrayAdapter<SpinnerContent>(
                 this.getActivity(), R.layout.call_log_spinner_item, setupStatusFilterContent());
         mFilterStatusSpinnerView.setAdapter(filterStatusAdapter);
@@ -209,14 +199,17 @@ public class MSimCallLogFragment extends CallLogFragment {
     }
 
     private SpinnerContent[] setupSubFilterContent() {
-        int count = MSimTelephonyManager.getDefault().getPhoneCount();
+        TelephonyManager telephonyManager =
+                (TelephonyManager) getActivity().getSystemService(Context.TELEPHONY_SERVICE);
+        int count = telephonyManager.getPhoneCount();
         // Update the filter sub content.
         SpinnerContent filterSub[] = new SpinnerContent[count + 1];
         filterSub[0] = new SpinnerContent(CallLogQueryHandler.CALL_SUB_ALL,
                 getString(R.string.call_log_show_all_slots));
         for (int i = 0; i < count; i++) {
-            filterSub[i + 1] = new SpinnerContent(i,
-                    DialtactsActivity.getMultiSimName(getActivity(), i));
+            String subDisplayName = PhoneAccountUtils.getAccountLabel(getActivity(),
+                    MoreContactUtils.getAccount(i));
+            filterSub[i + 1] = new SpinnerContent(i, subDisplayName);
         }
         return filterSub;
     }
@@ -227,30 +220,30 @@ public class MSimCallLogFragment extends CallLogFragment {
         SpinnerContent filterStatus[] = new SpinnerContent[statusCount];
         for (int i = 0; i < statusCount; i++) {
             int value = CallLogQueryHandler.CALL_TYPE_ALL;
-            String lable = null;
+            String label = null;
             switch (i) {
                 case INDEX_CALL_TYPE_ALL:
                     value = CallLogQueryHandler.CALL_TYPE_ALL;
-                    lable = getString(R.string.call_log_all_calls_header);
+                    label = getString(R.string.call_log_all_calls_header);
                     break;
                 case INDEX_CALL_TYPE_INCOMING:
                     value = Calls.INCOMING_TYPE;
-                    lable = getString(R.string.call_log_incoming_header);
+                    label = getString(R.string.call_log_incoming_header);
                     break;
                 case INDEX_CALL_TYPE_OUTGOING:
                     value = Calls.OUTGOING_TYPE;
-                    lable = getString(R.string.call_log_outgoing_header);
+                    label = getString(R.string.call_log_outgoing_header);
                     break;
                 case INDEX_CALL_TYPE_MISSED:
                     value = Calls.MISSED_TYPE;
-                    lable = getString(R.string.call_log_missed_header);
+                    label = getString(R.string.call_log_missed_header);
                     break;
                 case INDEX_CALL_TYPE_VOICEMAIL:
                     value = Calls.VOICEMAIL_TYPE;
-                    lable = getString(R.string.call_log_voicemail_header);
+                    label = getString(R.string.call_log_voicemail_header);
                     break;
             }
-            filterStatus[i] = new SpinnerContent(value, lable);
+            filterStatus[i] = new SpinnerContent(value, label);
         }
         return filterStatus;
     }
@@ -283,7 +276,7 @@ public class MSimCallLogFragment extends CallLogFragment {
 
         public static void setSpinnerContentValue(Spinner spinner, int value) {
             for (int i = 0, count = spinner.getCount(); i < count; i++) {
-                SpinnerContent sc = (SpinnerContent)spinner.getItemAtPosition(i);
+                SpinnerContent sc = (SpinnerContent) spinner.getItemAtPosition(i);
                 if (sc.value == value) {
                     spinner.setSelection(i, true);
                     Log.i(TAG, "Set selection for spinner(" + sc + ") with the value: " + value);

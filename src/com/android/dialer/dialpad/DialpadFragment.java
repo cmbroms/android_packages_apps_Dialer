@@ -1,6 +1,4 @@
 /*
- * Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
- * Not a Contribution.
  * Copyright (C) 2011 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,12 +20,11 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.DialogFragment;
-import android.app.Fragment;
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.Bitmap;
@@ -36,16 +33,16 @@ import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.RemoteException;
-import android.os.ServiceManager;
-import android.os.SystemProperties;
 import android.provider.Contacts.People;
 import android.provider.Contacts.Phones;
 import android.provider.Contacts.PhonesColumns;
 import android.provider.Settings;
-import android.telephony.MSimTelephonyManager;
+import android.telecom.PhoneAccount;
+import android.telecom.PhoneAccountHandle;
+import android.telecom.TelecomManager;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.PhoneStateListener;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.Editable;
 import android.text.SpannableString;
@@ -54,7 +51,6 @@ import android.text.TextWatcher;
 import android.text.style.RelativeSizeSpan;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -62,54 +58,54 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
-import android.view.ViewTreeObserver.OnPreDrawListener;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.PopupMenu;
-import android.widget.TableRow;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.android.contacts.common.CallUtil;
+import com.android.contacts.common.ContactsUtils;
 import com.android.contacts.common.GeoUtil;
 import com.android.contacts.common.MoreContactUtils;
 import com.android.contacts.common.util.PhoneNumberFormatter;
 import com.android.contacts.common.util.StopWatch;
-import com.android.dialer.NeededForReflection;
+import com.android.contacts.common.widget.FloatingActionButtonController;
 import com.android.dialer.DialtactsActivity;
+import com.android.dialer.NeededForReflection;
 import com.android.dialer.R;
 import com.android.dialer.SpecialCharSequenceMgr;
-import com.android.dialer.cmstats.DialerStats;
-import com.android.dialer.SpeedDialUtils;
 import com.android.dialer.SpeedDialListActivity;
-import com.android.dialer.database.DialerDatabaseHelper;
-import com.android.dialer.interactions.PhoneNumberInteraction;
-import com.android.dialer.util.OrientationUtil;
-import com.android.internal.telephony.ITelephony;
-import com.android.internal.telephony.MSimConstants;
+import com.android.dialer.SpeedDialUtils;
+import com.android.dialer.util.DialerUtils;
+import com.android.dialerbind.analytics.AnalyticsFragment;
 import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.TelephonyProperties;
 import com.android.phone.common.CallLogAsync;
 import com.android.phone.common.HapticFeedback;
+import com.android.phone.common.animation.AnimUtils;
+import com.android.phone.common.dialpad.DialpadKeyButton;
+import com.android.phone.common.dialpad.DialpadView;
+
 import com.google.common.annotations.VisibleForTesting;
 
 import java.util.HashSet;
-import java.util.Locale;
 
 /**
  * Fragment that displays a twelve-key phone dialpad.
  */
-public class DialpadFragment extends Fragment
+public class DialpadFragment extends AnalyticsFragment
         implements View.OnClickListener,
         View.OnLongClickListener, View.OnKeyListener,
         AdapterView.OnItemClickListener, TextWatcher,
         PopupMenu.OnMenuItemClickListener,
         DialpadKeyButton.OnPressedListener {
     private static final String TAG = DialpadFragment.class.getSimpleName();
+
     private Context mContext;
 
     /**
@@ -123,25 +119,25 @@ public class DialpadFragment extends Fragment
      * TODO: Refactor the app so this interchange is a bit cleaner.
      */
     public interface HostInterface {
-        void setDialButtonEnabled(boolean enabled);
-        void setDialButtonContainerVisible(boolean visible);
+        void setConferenceDialButtonVisibility(boolean enabled);
+        void setConferenceDialButtonImage(boolean setAddParticipantButton);
     }
 
     /**
      * LinearLayout with getter and setter methods for the translationY property using floats,
      * for animation purposes.
      */
-    public static class DialpadSlidingLinearLayout extends LinearLayout {
+    public static class DialpadSlidingRelativeLayout extends RelativeLayout {
 
-        public DialpadSlidingLinearLayout(Context context) {
+        public DialpadSlidingRelativeLayout(Context context) {
             super(context);
         }
 
-        public DialpadSlidingLinearLayout(Context context, AttributeSet attrs) {
+        public DialpadSlidingRelativeLayout(Context context, AttributeSet attrs) {
             super(context, attrs);
         }
 
-        public DialpadSlidingLinearLayout(Context context, AttributeSet attrs, int defStyle) {
+        public DialpadSlidingRelativeLayout(Context context, AttributeSet attrs, int defStyle) {
             super(context, attrs, defStyle);
         }
 
@@ -158,30 +154,6 @@ public class DialpadFragment extends Fragment
         }
     }
 
-    /**
-     * LinearLayout that always returns true for onHoverEvent callbacks, to fix
-     * problems with accessibility due to the dialpad overlaying other fragments.
-     */
-    public static class HoverIgnoringLinearLayout extends LinearLayout {
-
-        public HoverIgnoringLinearLayout(Context context) {
-            super(context);
-        }
-
-        public HoverIgnoringLinearLayout(Context context, AttributeSet attrs) {
-            super(context, attrs);
-        }
-
-        public HoverIgnoringLinearLayout(Context context, AttributeSet attrs, int defStyle) {
-            super(context, attrs, defStyle);
-        }
-
-        @Override
-        public boolean onHoverEvent(MotionEvent event) {
-            return true;
-        }
-    }
-
     public interface OnDialpadQueryChangedListener {
         void onDialpadQueryChanged(String query);
     }
@@ -190,8 +162,6 @@ public class DialpadFragment extends Fragment
 
     // This is the amount of screen the dialpad fragment takes up when fully displayed
     private static final float DIALPAD_SLIDE_FRACTION = 0.67f;
-
-    private static final String SUBSCRIPTION_KEY = "subscription";
 
     private static final String EMPTY_NUMBER = "";
     private static final char PAUSE = ',';
@@ -209,21 +179,24 @@ public class DialpadFragment extends Fragment
 
     private OnDialpadQueryChangedListener mDialpadQueryListener;
 
-    /**
-     * View (usually FrameLayout) containing mDigits field. This can be null, in which mDigits
-     * isn't enclosed by the container.
-     */
-    private View mDigitsContainer;
+    private DialpadView mDialpadView;
     private EditText mDigits;
+    private EditText mRecipients;
+    private View mDigitsContainer;
+    private View mDialpad;
+    private int mDialpadSlideInDuration;
 
     /** Remembers if we need to clear digits field when the screen is completely gone. */
     private boolean mClearDigitsOnStop;
 
+    private View mOverflowMenuButton;
+    private PopupMenu mOverflowPopupMenu;
     private View mDelete;
     private ToneGenerator mToneGenerator;
     private final Object mToneGeneratorLock = new Object();
-    private View mDialpad;
     private View mSpacer;
+
+    private FloatingActionButtonController mFloatingActionButtonController;
 
     /**
      * Set of dialpad keys that are currently being pressed
@@ -238,7 +211,6 @@ public class DialpadFragment extends Fragment
      */
     private String mProhibitedPhoneNumberRegexp;
 
-    private int mSubscription = 0;
 
     // Last number dialed, retrieved asynchronously from the call DB
     // in onCreate. This number is displayed when the user hits the
@@ -255,15 +227,19 @@ public class DialpadFragment extends Fragment
     /** Identifier for the "Add Call" intent extra. */
     private static final String ADD_CALL_MODE_KEY = "add_call_mode";
 
+    /** Identifier for the "Add Participant" intent extra. */
+    private static final String ADD_PARTICIPANT_KEY = "add_participant";
+    private boolean mAddParticipant = false;
+
     /**
      * Identifier for intent extra for sending an empty Flash message for
      * CDMA networks. This message is used by the network to simulate a
      * press/depress of the "hookswitch" of a landline phone. Aka "empty flash".
      *
      * TODO: Using an intent extra to tell the phone to send this flash is a
-     * temporary measure. To be replaced with an ITelephony call in the future.
+     * temporary measure. To be replaced with an Telephony/TelecomManager call in the future.
      * TODO: Keep in sync with the string defined in OutgoingCallBroadcaster.java
-     * in Phone app until this is replaced with the ITelephony API.
+     * in Phone app until this is replaced with the Telephony/Telecom API.
      */
     private static final String EXTRA_SEND_EMPTY_FLASH
             = "com.android.phone.extra.SEND_EMPTY_FLASH";
@@ -280,7 +256,7 @@ public class DialpadFragment extends Fragment
         public void onCallStateChanged(int state, String incomingNumber) {
             // Log.i(TAG, "PhoneStateListener.onCallStateChanged: "
             //       + state + ", '" + incomingNumber + "'");
-            if ((state == TelephonyManager.CALL_STATE_IDLE) && dialpadChooserVisible()) {
+            if ((state == TelephonyManager.CALL_STATE_IDLE) && isDialpadChooserVisible()) {
                 // Log.i(TAG, "Call ended with dialpad chooser visible!  Taking it down...");
                 // Note there's a race condition in the UI here: the
                 // dialpad chooser could conceivably disappear (on its
@@ -289,6 +265,9 @@ public class DialpadFragment extends Fragment
                 // least that's better than leaving the dialpad chooser
                 // onscreen, but useless...)
                 showDialpadChooser(false);
+            }
+            if (state == TelephonyManager.CALL_STATE_IDLE && getActivity() != null) {
+                ((HostInterface) getActivity()).setConferenceDialButtonVisibility(true);
             }
         }
     };
@@ -304,7 +283,9 @@ public class DialpadFragment extends Fragment
 
     private boolean mStartedFromNewIntent = false;
     private boolean mFirstLaunch = false;
-    private boolean mAdjustTranslationForAnimation = false;
+    private boolean mAnimate = false;
+
+    private ComponentName mSmsPackageComponentName;
 
     private static final String PREF_DIGITS_FILLED_BY_INTENT = "pref_digits_filled_by_intent";
 
@@ -312,14 +293,15 @@ public class DialpadFragment extends Fragment
      * Return an Intent for launching voicemail screen.
      */
     private static Intent getVoicemailIntent() {
-        final Intent intent = new Intent(Intent.ACTION_CALL_PRIVILEGED,
-                Uri.fromParts("voicemail", "", null));
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        return intent;
+        return CallUtil.getCallIntent(Uri.fromParts(PhoneAccount.SCHEME_VOICEMAIL, "", null));
     }
 
     private TelephonyManager getTelephonyManager() {
         return (TelephonyManager) getActivity().getSystemService(Context.TELEPHONY_SERVICE);
+    }
+
+    private TelecomManager getTelecomManager() {
+        return (TelecomManager) getActivity().getSystemService(Context.TELECOM_SERVICE);
     }
 
     @Override
@@ -333,6 +315,7 @@ public class DialpadFragment extends Fragment
             final Activity activity = getActivity();
             if (activity != null) {
                 activity.invalidateOptionsMenu();
+                updateMenuOverflowButton(mWasEmptyBeforeTextChange);
             }
         }
 
@@ -359,7 +342,7 @@ public class DialpadFragment extends Fragment
         if (mDialpadQueryListener != null) {
             mDialpadQueryListener.onDialpadQueryChanged(mDigits.getText().toString());
         }
-        updateDialAndDeleteButtonEnabledState();
+        updateDeleteButtonEnabledState();
     }
 
     @Override
@@ -381,6 +364,8 @@ public class DialpadFragment extends Fragment
         if (state != null) {
             mDigitsFilledByIntent = state.getBoolean(PREF_DIGITS_FILLED_BY_INTENT);
         }
+
+        mDialpadSlideInDuration = getResources().getInteger(R.integer.dialpad_slide_in_duration);
     }
 
     @Override
@@ -389,43 +374,33 @@ public class DialpadFragment extends Fragment
                 false);
         fragmentView.buildLayer();
 
-        final ViewTreeObserver vto = fragmentView.getViewTreeObserver();
-        // Adjust the translation of the DialpadFragment in a preDrawListener instead of in
-        // DialtactsActivity, because at the point in time when the DialpadFragment is added,
-        // its views have not been laid out yet.
-        final OnPreDrawListener preDrawListener = new OnPreDrawListener() {
-
-            @Override
-            public boolean onPreDraw() {
-
-                if (isHidden()) return true;
-                if (mAdjustTranslationForAnimation && fragmentView.getTranslationY() == 0) {
-                    ((DialpadSlidingLinearLayout) fragmentView).setYFraction(
-                            DIALPAD_SLIDE_FRACTION);
-                }
-                final ViewTreeObserver vto = fragmentView.getViewTreeObserver();
-                vto.removeOnPreDrawListener(this);
-                return true;
-            }
-
-        };
-
-        vto.addOnPreDrawListener(preDrawListener);
-
-        // Load up the resources for the text field.
         Resources r = getResources();
 
+        mDialpadView = (DialpadView) fragmentView.findViewById(R.id.dialpad_view);
+        mDialpadView.setCanDigitsBeEdited(true);
+        mDigits = mDialpadView.getDigits();
+        mRecipients = (EditText) fragmentView.findViewById(R.id.recipients);
         mDigitsContainer = fragmentView.findViewById(R.id.digits_container);
-        mDigits = (EditText) fragmentView.findViewById(R.id.digits);
+        mDialpad = fragmentView.findViewById(R.id.dialpad);
+        if (mRecipients != null) {
+            mRecipients.setVisibility(View.GONE);
+            mRecipients.addTextChangedListener(this);
+        }
         mDigits.setKeyListener(UnicodeDialerKeyListener.INSTANCE);
         mDigits.setOnClickListener(this);
         mDigits.setOnKeyListener(this);
         mDigits.setOnLongClickListener(this);
         mDigits.addTextChangedListener(this);
+        mDigits.setElegantTextHeight(false);
         PhoneNumberFormatter.setPhoneNumberFormattingTextWatcher(getActivity(), mDigits);
-        setupKeypad(fragmentView);
+        // Check for the presence of the keypad
+        View oneButton = fragmentView.findViewById(R.id.one);
+        if (oneButton != null) {
+            configureKeypadListeners(fragmentView);
+        }
 
-        mDelete = fragmentView.findViewById(R.id.deleteButton);
+        mDelete = mDialpadView.getDeleteButton();
+
         if (mDelete != null) {
             mDelete.setOnClickListener(this);
             mDelete.setOnLongClickListener(this);
@@ -443,25 +418,21 @@ public class DialpadFragment extends Fragment
             }
         });
 
-        mDialpad = fragmentView.findViewById(R.id.dialpad);  // This is null in landscape mode.
-
-        // In landscape we put the keyboard in phone mode.
-        if (null == mDialpad) {
-            mDigits.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
-        } else {
-            mDigits.setCursorVisible(false);
-        }
+        mDigits.setCursorVisible(false);
 
         // Set up the "dialpad chooser" UI; see showDialpadChooser().
         mDialpadChooser = (ListView) fragmentView.findViewById(R.id.dialpadChooser);
         mDialpadChooser.setOnItemClickListener(this);
 
-        return fragmentView;
-    }
+        final View floatingActionButtonContainer =
+                fragmentView.findViewById(R.id.dialpad_floating_action_button_container);
+        final View floatingActionButton =
+                (ImageButton) fragmentView.findViewById(R.id.dialpad_floating_action_button);
+        floatingActionButton.setOnClickListener(this);
+        mFloatingActionButtonController = new FloatingActionButtonController(getActivity(),
+                floatingActionButtonContainer, floatingActionButton);
 
-    @Override
-    public void onStart() {
-        super.onStart();
+        return fragmentView;
     }
 
     private boolean isLayoutReady() {
@@ -486,21 +457,14 @@ public class DialpadFragment extends Fragment
         if (Intent.ACTION_DIAL.equals(action) || Intent.ACTION_VIEW.equals(action)) {
             Uri uri = intent.getData();
             if (uri != null) {
-                if (CallUtil.SCHEME_TEL.equals(uri.getScheme())
-                        || CallUtil.SCHEME_SIP.equals(uri.getScheme())) {
+                if (PhoneAccount.SCHEME_TEL.equals(uri.getScheme())) {
                     // Put the requested number into the input area
                     String data = uri.getSchemeSpecificPart();
                     // Remember it is filled via Intent.
                     mDigitsFilledByIntent = true;
-                    String newData;
-                    if (CallUtil.SCHEME_TEL.equals(uri.getScheme())) {
-                        newData = PhoneNumberUtils.convertKeypadLettersToDigits(
-                                PhoneNumberUtils.replaceUnicodeDigits(data));
-                    } else {
-                        // Do not convert, when it is a SIP number.
-                        newData = data;
-                    }
-                    setFormattedDigits(newData, null);
+                    final String converted = PhoneNumberUtils.convertKeypadLettersToDigits(
+                            PhoneNumberUtils.replaceUnicodeDigits(data));
+                    setFormattedDigits(converted, null);
                     return true;
                 } else {
                     String type = intent.getType();
@@ -588,12 +552,15 @@ public class DialpadFragment extends Fragment
                         || Intent.ACTION_MAIN.equals(action)) {
                     // If there's already an active call, bring up an intermediate UI to
                     // make the user confirm what they really want to do.
-                    if (phoneIsInUse()) {
+                    if (isPhoneInUse()) {
                         needToShowDialpadChooser = true;
                     }
                 }
 
             }
+        } else {
+            mAddParticipant = intent.getBooleanExtra(ADD_PARTICIPANT_KEY, false);
+            ((HostInterface) getActivity()).setConferenceDialButtonVisibility(true);
         }
         showDialpadChooser(needToShowDialpadChooser);
         setStartedFromNewIntent(false);
@@ -607,108 +574,49 @@ public class DialpadFragment extends Fragment
      * Sets formatted digits to digits field.
      */
     private void setFormattedDigits(String data, String normalizedNumber) {
-        String dialString;
-        boolean isSipNumber = PhoneNumberUtils.isUriNumber(data);
-        if (isSipNumber) {
-            dialString = data;
-        } else {
-            // strip the non-dialable numbers out of the data string.
-            dialString = PhoneNumberUtils.extractNetworkPortion(data);
-            dialString =
-                    PhoneNumberUtils.formatNumber(dialString, normalizedNumber, mCurrentCountryIso);
-        }
+        // strip the non-dialable numbers out of the data string.
+        String dialString = PhoneNumberUtils.extractNetworkPortion(data);
+        dialString =
+                PhoneNumberUtils.formatNumber(dialString, normalizedNumber, mCurrentCountryIso);
         if (!TextUtils.isEmpty(dialString)) {
-            if (isSipNumber) {
-                mDigits.setText(dialString);
-            } else {
-                Editable digits = mDigits.getText();
-                digits.replace(0, digits.length(), dialString);
-                // for some reason this isn't getting called in the digits.replace call above..
-                // but in any case, this will make sure the background drawable looks right
-                afterTextChanged(digits);
-            }
+            Editable digits = mDigits.getText();
+            digits.replace(0, digits.length(), dialString);
+            // for some reason this isn't getting called in the digits.replace call above..
+            // but in any case, this will make sure the background drawable looks right
+            afterTextChanged(digits);
         }
     }
 
-    private void setupKeypad(View fragmentView) {
-        // make sure keypad is there
-        View oneButton = fragmentView.findViewById(R.id.one);
-        if (oneButton == null)
-            return;
-
-        final int[] buttonIds = new int[] {R.id.zero, R.id.one, R.id.two, R.id.three, R.id.four,
-                R.id.five, R.id.six, R.id.seven, R.id.eight, R.id.nine, R.id.star, R.id.pound};
-
-        final int[] numberIds = new int[] {R.string.dialpad_0_number, R.string.dialpad_1_number,
-                R.string.dialpad_2_number, R.string.dialpad_3_number, R.string.dialpad_4_number,
-                R.string.dialpad_5_number, R.string.dialpad_6_number, R.string.dialpad_7_number,
-                R.string.dialpad_8_number, R.string.dialpad_9_number, R.string.dialpad_star_number,
-                R.string.dialpad_pound_number};
-
-        final int[] letterIds = new int[] {R.string.dialpad_0_letters, R.string.dialpad_1_letters,
-                R.string.dialpad_2_letters, R.string.dialpad_3_letters, R.string.dialpad_4_letters,
-                R.string.dialpad_5_letters, R.string.dialpad_6_letters, R.string.dialpad_7_letters,
-                R.string.dialpad_8_letters, R.string.dialpad_9_letters,
-                R.string.dialpad_star_letters, R.string.dialpad_pound_letters};
-
-        final int[] letter2Ids = new int[] {R.string.dialpad_0_2_letters, R.string.dialpad_1_2_letters,
-                R.string.dialpad_2_2_letters, R.string.dialpad_3_2_letters, R.string.dialpad_4_2_letters,
-                R.string.dialpad_5_2_letters, R.string.dialpad_6_2_letters, R.string.dialpad_7_2_letters,
-                R.string.dialpad_8_2_letters, R.string.dialpad_9_2_letters,
-                R.string.dialpad_star_2_letters, R.string.dialpad_pound_2_letters};
-
-        // load the dialpad resources based on the t9 serach input locale
-        Locale t9SearchInputLocale = SmartDialPrefix.getT9SearchInputLocale(getActivity());
-        final Resources resources = getResourcesForLocale(t9SearchInputLocale);
+    private void configureKeypadListeners(View fragmentView) {
+        final int[] buttonIds = new int[] {R.id.one, R.id.two, R.id.three, R.id.four, R.id.five,
+                R.id.six, R.id.seven, R.id.eight, R.id.nine, R.id.star, R.id.zero, R.id.pound};
 
         DialpadKeyButton dialpadKey;
-        TextView numberView;
-        TextView lettersView;
-        TextView letters2View;
 
         for (int i = 0; i < buttonIds.length; i++) {
             dialpadKey = (DialpadKeyButton) fragmentView.findViewById(buttonIds[i]);
-            dialpadKey.setLayoutParams(new TableRow.LayoutParams(
-                    TableRow.LayoutParams.MATCH_PARENT, TableRow.LayoutParams.MATCH_PARENT));
             dialpadKey.setOnPressedListener(this);
-            if ((buttonIds[i] != R.id.one) && (buttonIds[i] != R.id.zero)
-                    && (buttonIds[i] != R.id.star) && (buttonIds[i] != R.id.pound)) {
+            // Long-pressing button from two to nine will set up speed key dial.
+            if (i > 0 && i < buttonIds.length - 3) {
                 dialpadKey.setOnLongClickListener(this);
-            }
-            numberView = (TextView) dialpadKey.findViewById(R.id.dialpad_key_number);
-            lettersView = (TextView) dialpadKey.findViewById(R.id.dialpad_key_letters);
-            letters2View = (TextView) dialpadKey.findViewById(R.id.dialpad_key2_letters);
-            final String numberString = resources.getString(numberIds[i]);
-            numberView.setText(numberString);
-            dialpadKey.setContentDescription(numberString);
-            if (lettersView != null) {
-                lettersView.setText(resources.getString(letterIds[i]));
-            }
-            if (letters2View != null) {
-                letters2View.setText(resources.getString(letter2Ids[i]));
-                if (buttonIds[i] == R.id.zero) {
-                    letters2View.setTextSize(TypedValue.COMPLEX_UNIT_PX, resources.getDimension(
-                            R.dimen.dialpad_key_plus_size)/2);
-                }
             }
         }
 
         // Long-pressing one button will initiate Voicemail.
-        fragmentView.findViewById(R.id.one).setOnLongClickListener(this);
+        final DialpadKeyButton one = (DialpadKeyButton) fragmentView.findViewById(R.id.one);
+        one.setOnLongClickListener(this);
 
         // Long-pressing zero button will enter '+' instead.
-        fragmentView.findViewById(R.id.zero).setOnLongClickListener(this);
+        final DialpadKeyButton zero = (DialpadKeyButton) fragmentView.findViewById(R.id.zero);
+        zero.setOnLongClickListener(this);
 
         // Long-pressing star button will enter ','(pause) instead.
-        fragmentView.findViewById(R.id.star).setOnLongClickListener(this);
-        // Long-pressing pound button will enter ';'(wait) instead.
-        fragmentView.findViewById(R.id.pound).setOnLongClickListener(this);
-    }
+        final DialpadKeyButton star = (DialpadKeyButton) fragmentView.findViewById(R.id.star);
+        star.setOnLongClickListener(this);
 
-    public void refreshKeypad() {
-        View fragmentView = getView();
-        if (fragmentView != null)
-            setupKeypad(fragmentView);
+        // Long-pressing pound button will enter ';'(wait) instead.
+        final DialpadKeyButton pound = (DialpadKeyButton) fragmentView.findViewById(R.id.pound);
+        pound.setOnLongClickListener(this);
     }
 
     @Override
@@ -775,7 +683,7 @@ public class DialpadFragment extends Fragment
         // are currently in use.  (Right now we let the user try to add
         // another call, but that call is guaranteed to fail.  Perhaps the
         // entire dialer UI should be disabled instead.)
-        if (phoneIsInUse()) {
+        if (isPhoneInUse()) {
             final SpannableString hint = new SpannableString(
                     getActivity().getString(R.string.dialerDialpadHintText));
             hint.setSpan(new RelativeSizeSpan(0.8f), 0, hint.length(), 0);
@@ -793,11 +701,22 @@ public class DialpadFragment extends Fragment
 
         stopWatch.lap("hnt");
 
-        updateDialAndDeleteButtonEnabledState();
+        updateDeleteButtonEnabledState();
 
         stopWatch.lap("bes");
 
         stopWatch.stopAndLog(TAG, 50);
+
+        mSmsPackageComponentName = DialerUtils.getSmsComponent(activity);
+
+        // Populate the overflow menu in onResume instead of onCreate, so that if the SMS activity
+        // is disabled while Dialer is paused, the "Send a text message" option can be correctly
+        // removed when resumed.
+        mOverflowMenuButton = mDialpadView.getOverflowMenuButton();
+        mOverflowPopupMenu = buildOptionsMenu(mOverflowMenuButton);
+        mOverflowMenuButton.setOnTouchListener(mOverflowPopupMenu.getDragToOpenListener());
+        mOverflowMenuButton.setOnClickListener(this);
+        mOverflowMenuButton.setVisibility(isDigitsEmpty() ? View.INVISIBLE : View.VISIBLE);
     }
 
     @Override
@@ -838,55 +757,6 @@ public class DialpadFragment extends Fragment
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putBoolean(PREF_DIGITS_FILLED_BY_INTENT, mDigitsFilledByIntent);
-    }
-
-    public void setupMenuItems(Menu menu) {
-        final MenuItem addToContactMenuItem = menu.findItem(R.id.menu_add_contacts);
-        final MenuItem videocallMenuItem = menu.findItem(R.id.menu_video_call);
-        final MenuItem videocallsettingsMenuItem = menu.findItem(R.id.menu_video_call_settings);
-        final MenuItem ipCallBySlot1MenuItem = menu.findItem(R.id.menu_ip_call_by_slot1);
-        final MenuItem ipCallBySlot2MenuItem = menu.findItem(R.id.menu_ip_call_by_slot2);
-
-        // We show "video call setting" menu only when the csvt is supported
-        //which means the prop "persist.radio.csvt.enabled" = true
-        videocallsettingsMenuItem.setVisible(isVTSupported());
-
-        // We show "add to contacts" menu only when the user is
-        // seeing usual dialpad and has typed at least one digit.
-        // We never show a menu if the "choose dialpad" UI is up.
-        if (dialpadChooserVisible() || isDigitsEmpty()) {
-            addToContactMenuItem.setVisible(false);
-            videocallMenuItem.setVisible(false);
-            ipCallBySlot1MenuItem.setVisible(false);
-            ipCallBySlot2MenuItem.setVisible(false);
-        } else {
-            if (MoreContactUtils.isMultiSimEnable(mContext, MSimConstants.SUB1)) {
-                String sub1Name = MoreContactUtils.getSimSpnName(MSimConstants.SUB1);
-                ipCallBySlot1MenuItem.setTitle(getActivity().getString(
-                        com.android.contacts.common.R.string.ip_call_by_slot, sub1Name));
-                ipCallBySlot1MenuItem.setVisible(true);
-            } else {
-                ipCallBySlot1MenuItem.setVisible(false);
-            }
-            if (MoreContactUtils.isMultiSimEnable(mContext, MSimConstants.SUB2)) {
-                String sub2Name = MoreContactUtils.getSimSpnName(MSimConstants.SUB2);
-                ipCallBySlot2MenuItem.setTitle(getActivity().getString(
-                        com.android.contacts.common.R.string.ip_call_by_slot, sub2Name));
-                ipCallBySlot2MenuItem.setVisible(true);
-            } else {
-                ipCallBySlot2MenuItem.setVisible(false);
-            }
-            final CharSequence digits = mDigits.getText();
-            // Put the current digits string into an intent
-            addToContactMenuItem.setIntent(DialtactsActivity.getAddNumberToContactIntent(digits));
-            addToContactMenuItem.setVisible(true);
-
-            //add for csvt
-            videocallMenuItem.setVisible(isVTSupported());
-            if(isVTSupported()){
-                videocallMenuItem.setIntent(getVTCallIntent(digits.toString()));
-            }
-        }
     }
 
     private void keyPressed(int keyCode) {
@@ -1024,7 +894,6 @@ public class DialpadFragment extends Fragment
             }
             mPressedDialpadKeys.add(view);
         } else {
-            view.jumpDrawablesToCurrentState();
             mPressedDialpadKeys.remove(view);
             if (mPressedDialpadKeys.isEmpty()) {
                 stopTone();
@@ -1038,11 +907,48 @@ public class DialpadFragment extends Fragment
      *
      * @param invoker the View that invoked the options menu, to act as an anchor location.
      */
-    public PopupMenu buildOptionsMenu(View invoker) {
-        final PopupMenu popupMenu = new PopupMenu(getActivity(), invoker);
+    private PopupMenu buildOptionsMenu(View invoker) {
+        final PopupMenu popupMenu = new PopupMenu(getActivity(), invoker) {
+            @Override
+            public void show() {
+                final Menu menu = getMenu();
+                final MenuItem sendMessage = menu.findItem(R.id.menu_send_message);
+                sendMessage.setVisible(mSmsPackageComponentName != null);
+
+                final MenuItem ipCallBySlot1 = menu.findItem(R.id.menu_ip_call_by_slot1);
+                final MenuItem ipCallBySlot2 = menu.findItem(R.id.menu_ip_call_by_slot2);
+                if (MoreContactUtils.isMultiSimEnable(mContext, PhoneConstants.SUB1)) {
+                    String sub1Name = MoreContactUtils.getMultiSimAliasesName(
+                            mContext, PhoneConstants.SUB1);
+                    ipCallBySlot1.setTitle(mContext.getString(
+                            com.android.contacts.common.R.string.ip_call_by_slot, sub1Name));
+                    ipCallBySlot1.setVisible(true);
+                } else {
+                    ipCallBySlot1.setVisible(false);
+                }
+                if (MoreContactUtils.isMultiSimEnable(mContext, PhoneConstants.SUB2)) {
+                    String sub2Name = MoreContactUtils.getMultiSimAliasesName(
+                            mContext, PhoneConstants.SUB2);
+                    ipCallBySlot2.setTitle(mContext.getString(
+                            com.android.contacts.common.R.string.ip_call_by_slot, sub2Name));
+                    ipCallBySlot2.setVisible(true);
+                } else {
+                    ipCallBySlot2.setVisible(false);
+                }
+
+                final MenuItem VideoCallOption = menu.findItem(R.id.menu_video_call);
+                VideoCallOption.setVisible(CallUtil.isCSVTEnabled());
+
+                boolean enable = !isDigitsEmpty();
+                for (int i = 0; i < menu.size(); i++) {
+                    menu.getItem(i).setEnabled(enable);
+                }
+
+                super.show();
+            }
+        };
         popupMenu.inflate(R.menu.dialpad_options);
         popupMenu.setOnMenuItemClickListener(this);
-        setupMenuItems(popupMenu.getMenu());
         return popupMenu;
     }
 
@@ -1055,18 +961,90 @@ public class DialpadFragment extends Fragment
         handleDialButtonPressed();
     }
 
+    public void dialConferenceButtonPressed() {
+        // show dial conference screen if it is not shown
+        // If it is already shown, show normal dial screen
+        boolean show = (mRecipients != null) && !mRecipients.isShown();
+        Log.d(TAG, "dialConferenceButtonPressed show " + show);
+        if (show) {
+            showDialConference(show);
+        } else {
+            handleDialButtonPressed();
+            showDialConference(!show);
+        }
+    }
+
+    public void showDialConference(boolean enabled) {
+        // Check if onCreateView() is already called by checking one of View
+        // objects.
+        if (!isLayoutReady()) {
+            return;
+        }
+        Log.d(TAG, "showDialConference " + enabled);
+        /*
+         * if enabled is true then pick child views that should be
+         * visible/invisible when dialpad is choosen from conference dial button
+         * if enabled is false then pick child views that should be
+         * visible/invisible when dialpad is choosen from other buttons
+         */
+
+        // viewable when choosen through conference button
+        int conferenceButtonVisibility = (enabled ? View.VISIBLE : View.GONE);
+        // not viewable when choosen through conference button
+        int nonConferenceButtonVisibility = (enabled ? View.GONE : View.VISIBLE);
+
+        // change the image visibility of the button
+        if (mRecipients != null)
+            mRecipients.setVisibility(conferenceButtonVisibility);
+        if (mDigits != null)
+            mDigits.setVisibility(nonConferenceButtonVisibility);
+        if (mDelete != null)
+            mDelete.setVisibility(nonConferenceButtonVisibility);
+        if (mDialpad != null)
+            mDialpad.setVisibility(enabled ? View.INVISIBLE : View.VISIBLE);
+
+        if (enabled && (HostInterface)getActivity() != null) {
+            ((HostInterface)getActivity()).setConferenceDialButtonImage(enabled);
+        }
+    }
+
+    public void hideAndClearDialConference() {
+        // hide the image visibility of the button
+        if (mRecipients != null)
+            mRecipients.setVisibility(View.GONE);
+        if (mDigits != null)
+            mDigits.setVisibility(View.GONE);
+        if (mDelete != null)
+            mDelete.setVisibility(View.GONE);
+        if (mDialpad != null)
+            mDialpad.setVisibility(View.GONE);
+        ((DialtactsActivity) getActivity()).commitDialpadFragmentHide();
+    }
+
+    public boolean isRecipientsShown() {
+        return mRecipients != null && mRecipients.isShown();
+    }
+
     @Override
     public void onClick(View view) {
         switch (view.getId()) {
+            case R.id.dialpad_floating_action_button:
+                mHaptic.vibrate();
+                handleDialButtonPressed();
+                break;
             case R.id.deleteButton: {
                 keyPressed(KeyEvent.KEYCODE_DEL);
-                return;
+                break;
             }
             case R.id.digits: {
                 if (!isDigitsEmpty()) {
                     mDigits.setCursorVisible(true);
                 }
-                return;
+                break;
+            }
+            case R.id.dialpad_overflow: {
+                mOverflowPopupMenu.show();
+                break;
             }
             default: {
                 Log.wtf(TAG, "Unexpected onClick() event from: " + view);
@@ -1082,10 +1060,6 @@ public class DialpadFragment extends Fragment
         switch (id) {
             case R.id.deleteButton: {
                 digits.clear();
-                // TODO: The framework forgets to clear the pressed
-                // status of disabled button. Until this is fixed,
-                // clear manually the pressed status. b/2133127
-                mDelete.setPressed(false);
                 return true;
             }
             case R.id.one: {
@@ -1129,30 +1103,6 @@ public class DialpadFragment extends Fragment
 
                 return true;
             }
-            case R.id.two:
-            case R.id.three:
-            case R.id.four:
-            case R.id.five:
-            case R.id.six:
-            case R.id.seven:
-            case R.id.eight:
-            case R.id.nine:
-                if ((mDigits.length() == 1)) {
-                    removePreviousDigitIfPossible();
-                    final boolean isAirplaneModeOn =
-                            Settings.System.getInt(getActivity().getContentResolver(),
-                                    Settings.System.AIRPLANE_MODE_ON, 0) != 0;
-                    if (isAirplaneModeOn) {
-                        DialogFragment dialogFragment = ErrorDialogFragment.newInstance(
-                                R.string.dialog_speed_dial_airplane_mode_message);
-                        dialogFragment.show(getFragmentManager(),
-                                "speed_dial_request_during_airplane_mode");
-                    } else {
-                        callSpeedNumber(id);
-                    }
-                    return true;
-                }
-                return false;
             case R.id.digits: {
                 // Right now EditText does not show the "paste" option when cursor is not visible.
                 // To show that, make the cursor visible, and return false, letting the EditText
@@ -1182,8 +1132,69 @@ public class DialpadFragment extends Fragment
                 }
                 return false;
             }
+            case R.id.two:
+            case R.id.three:
+            case R.id.four:
+            case R.id.five:
+            case R.id.six:
+            case R.id.seven:
+            case R.id.eight:
+            case R.id.nine: {
+                if (mDigits.length() == 1) {
+                    removePreviousDigitIfPossible();
+                    final boolean isAirplaneModeOn =
+                            Settings.System.getInt(getActivity().getContentResolver(),
+                            Settings.System.AIRPLANE_MODE_ON, 0) != 0;
+                    if (isAirplaneModeOn) {
+                        DialogFragment dialogFragment = ErrorDialogFragment.newInstance(
+                                R.string.dialog_speed_dial_airplane_mode_message);
+                        dialogFragment.show(getFragmentManager(),
+                                "speed_dial_request_during_airplane_mode");
+                    } else {
+                        callSpeedNumber(id);
+                    }
+                    return true;
+                }
+                return false;
+            }
         }
         return false;
+    }
+
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+        mContext = activity;
+    }
+
+    private void ipCallBySlot(int slotId) {
+        String prefix = MoreContactUtils.getIPCallPrefix(mContext, slotId);
+        if (!TextUtils.isEmpty(prefix)) {
+            long[] subId = SubscriptionManager.getSubId(slotId);
+            if (subId != null && subId.length >= 1) {
+                ComponentName serviceName =
+                        new ComponentName("com.android.phone",
+                        "com.android.services.telephony.TelephonyConnectionService");
+                PhoneAccountHandle account = new PhoneAccountHandle(serviceName,
+                        String.valueOf(subId[0]));
+                Intent callIntent = new Intent(CallUtil.getCallIntent(
+                        prefix + getValidDialNumber(), account));
+                startActivity(callIntent);
+            } else {
+                Intent callIntent = new Intent(CallUtil.getCallIntent(
+                        prefix + getValidDialNumber()));
+                startActivity(callIntent);
+            }
+        } else {
+            MoreContactUtils.showNoIPNumberDialog(mContext, slotId);
+        }
+    }
+
+    private String getValidDialNumber() {
+        if (mDigits != null)
+            return mDigits.getText().toString();
+        else
+            return "";
     }
 
     /**
@@ -1191,7 +1202,6 @@ public class DialpadFragment extends Fragment
      * the previous digit or cancel previously entered character.
      */
     private void removePreviousDigitIfPossible() {
-        final Editable editable = mDigits.getText();
         final int currentPosition = mDigits.getSelectionStart();
         if (currentPosition > 0) {
             mDigits.setSelection(currentPosition);
@@ -1200,7 +1210,7 @@ public class DialpadFragment extends Fragment
     }
 
     public void callVoicemail() {
-        startActivity(getVoicemailIntent());
+        DialerUtils.startActivityWithErrorToast(getActivity(), getVoicemailIntent());
         hideAndClearDialpad(false);
     }
 
@@ -1275,35 +1285,51 @@ public class DialpadFragment extends Fragment
      * case described above).
      */
     private void handleDialButtonPressed() {
-        if (isDigitsEmpty()) { // No number entered.
+        if (isDigitsEmpty() && (mRecipients == null || !mRecipients.isShown())) {
+            // No number entered.
             handleDialButtonClickWithEmptyDigits();
         } else {
-            DialerStats.sendEvent(getActivity(), DialerStats.Categories.INITIATE_CALL, "call_from_dialpad_direct");
-
-            final String number = mDigits.getText().toString();
-
-            // "persist.radio.otaspdial" is a temporary hack needed for one carrier's automated
-            // test equipment.
-            // TODO: clean it up.
-            if (number != null
-                    && !TextUtils.isEmpty(mProhibitedPhoneNumberRegexp)
-                    && number.matches(mProhibitedPhoneNumberRegexp)
-                    && (SystemProperties.getInt("persist.radio.otaspdial", 0) != 1)) {
-                Log.i(TAG, "The phone number is prohibited explicitly by a rule.");
-                if (getActivity() != null) {
-                    DialogFragment dialogFragment = ErrorDialogFragment.newInstance(
-                            R.string.dialog_phone_call_prohibited_message);
-                    dialogFragment.show(getFragmentManager(), "phone_prohibited_dialog");
-                }
-
-                // Clear the digits just in case.
-                mDigits.getText().clear();
+            boolean isDigitsShown = mDigits.isShown();
+            final String number = isDigitsShown ? mDigits.getText().toString() :
+                    mRecipients.getText().toString().trim();
+            if (isDigitsShown && isDigitsEmpty()) {
+                handleDialButtonClickWithEmptyDigits();
+            } else if (isDigitsEmpty() && mRecipients.isShown() && isRecipientEmpty()) {
+                // mRecipients must be empty
+                // TODO add support for conference URI in last number dialed
+                // use ErrorDialogFragment instead? also see
+                // android.app.AlertDialog
+                android.widget.Toast.makeText(getActivity(),
+                        "Error: Cannot dial.  Please provide conference recipients.",
+                        android.widget.Toast.LENGTH_SHORT).show();
             } else {
-                final Intent intent = CallUtil.getCallIntent(number,
-                        (getActivity() instanceof DialtactsActivity ?
-                                ((DialtactsActivity) getActivity()).getCallOrigin() : null));
-                startActivity(intent);
-                hideAndClearDialpad(false);
+                // "persist.radio.otaspdial" is a temporary hack needed for one carrier's automated
+                // test equipment.
+                // TODO: clean it up.
+                if (number != null
+                        && !TextUtils.isEmpty(mProhibitedPhoneNumberRegexp)
+                        && number.matches(mProhibitedPhoneNumberRegexp)) {
+                    Log.i(TAG, "The phone number is prohibited explicitly by a rule.");
+                    if (getActivity() != null) {
+                        DialogFragment dialogFragment = ErrorDialogFragment.newInstance(
+                                R.string.dialog_phone_call_prohibited_message);
+                        dialogFragment.show(getFragmentManager(), "phone_prohibited_dialog");
+                    }
+
+                    // Clear the digits just in case.
+                    clearDialpad();
+                } else {
+                    final Intent intent = CallUtil.getCallIntent(number,
+                            (getActivity() instanceof DialtactsActivity ?
+                                    ((DialtactsActivity) getActivity()).getCallOrigin() : null));
+                    if (!isDigitsShown) {
+                        // must be dial conference add extra
+                        intent.putExtra(TelephonyProperties.EXTRA_DIAL_CONFERENCE_URI, true);
+                    }
+                    intent.putExtra(ADD_PARTICIPANT_KEY, mAddParticipant);
+                    DialerUtils.startActivityWithErrorToast(getActivity(), intent);
+                    hideAndClearDialpad(false);
+                }
             }
         }
     }
@@ -1312,13 +1338,10 @@ public class DialpadFragment extends Fragment
         mDigits.getText().clear();
     }
 
-    private String getCallOrigin() {
-        return (getActivity() instanceof DialtactsActivity) ?
-                ((DialtactsActivity) getActivity()).getCallOrigin() : null;
-    }
-
     private void handleDialButtonClickWithEmptyDigits() {
-        if (phoneIsCdma() && phoneIsOffhook()) {
+        if (phoneIsCdma() && isPhoneInUse()) {
+            // TODO: Move this logic into services/Telephony
+            //
             // This is really CDMA specific. On GSM is it possible
             // to be off hook and wanted to add a 3rd party using
             // the redial feature.
@@ -1433,22 +1456,21 @@ public class DialpadFragment extends Fragment
      *                of the regular Dialer UI
      */
     private void showDialpadChooser(boolean enabled) {
+        if (getActivity() == null) {
+            return;
+        }
         // Check if onCreateView() is already called by checking one of View objects.
         if (!isLayoutReady()) {
             return;
         }
 
         if (enabled) {
-            // Log.i(TAG, "Showing dialpad chooser!");
-            if (mDigitsContainer != null) {
-                mDigitsContainer.setVisibility(View.GONE);
-            } else {
-                // mDigits is not enclosed by the container. Make the digits field itself gone.
-                mDigits.setVisibility(View.GONE);
+            Log.i(TAG, "Showing dialpad chooser!");
+            if (mDialpadView != null) {
+                mDialpadView.setVisibility(View.GONE);
             }
-            if (mDialpad != null) mDialpad.setVisibility(View.GONE);
-            ((HostInterface) getActivity()).setDialButtonContainerVisible(false);
 
+            mFloatingActionButtonController.setVisible(false);
             mDialpadChooser.setVisibility(View.VISIBLE);
 
             // Instantiate the DialpadChooserAdapter and hook it up to the
@@ -1458,14 +1480,14 @@ public class DialpadFragment extends Fragment
             }
             mDialpadChooser.setAdapter(mDialpadChooserAdapter);
         } else {
-            // Log.i(TAG, "Displaying normal Dialer UI.");
-            if (mDigitsContainer != null) {
-                mDigitsContainer.setVisibility(View.VISIBLE);
+            Log.i(TAG, "Displaying normal Dialer UI.");
+            if (mDialpadView != null) {
+                mDialpadView.setVisibility(View.VISIBLE);
             } else {
                 mDigits.setVisibility(View.VISIBLE);
             }
-            if (mDialpad != null) mDialpad.setVisibility(View.VISIBLE);
-            ((HostInterface) getActivity()).setDialButtonContainerVisible(true);
+
+            mFloatingActionButtonController.setVisible(true);
             mDialpadChooser.setVisibility(View.GONE);
         }
     }
@@ -1473,7 +1495,7 @@ public class DialpadFragment extends Fragment
     /**
      * @return true if we're currently showing the "dialpad chooser" UI.
      */
-    private boolean dialpadChooserVisible() {
+    private boolean isDialpadChooserVisible() {
         return mDialpadChooser.getVisibility() == View.VISIBLE;
     }
 
@@ -1618,12 +1640,7 @@ public class DialpadFragment extends Fragment
      * or "return to call" from the dialpad chooser.
      */
     private void returnToInCallScreen(boolean showDialpad) {
-        try {
-            ITelephony phone = ITelephony.Stub.asInterface(ServiceManager.checkService("phone"));
-            if (phone != null) phone.showCallScreenWithDialpad(showDialpad);
-        } catch (RemoteException e) {
-            Log.w(TAG, "phone.showCallScreenWithDialpad() failed", e);
-        }
+        getTelecomManager().showInCallScreen(showDialpad);
 
         // Finally, finish() ourselves so that we don't stay on the
         // activity stack.
@@ -1638,10 +1655,10 @@ public class DialpadFragment extends Fragment
 
     /**
      * @return true if the phone is "in use", meaning that at least one line
-     *              is active (ie. off hook or ringing or dialing).
+     *              is active (ie. off hook or ringing or dialing, or on hold).
      */
-    public boolean phoneIsInUse() {
-        return getTelephonyManager().getCallState() != TelephonyManager.CALL_STATE_IDLE;
+    public boolean isPhoneInUse() {
+        return getTelecomManager().isInCall();
     }
 
     /**
@@ -1651,35 +1668,42 @@ public class DialpadFragment extends Fragment
         return getTelephonyManager().getPhoneType() == TelephonyManager.PHONE_TYPE_CDMA;
     }
 
-    /**
-     * @return true if the phone state is OFFHOOK
-     */
-    private boolean phoneIsOffhook() {
-        return getTelephonyManager().getCallState() == TelephonyManager.CALL_STATE_OFFHOOK;
-    }
-
     @Override
     public boolean onMenuItemClick(MenuItem item) {
-        // R.id.menu_add_contacts already has an add to contact intent populated by setupMenuItems
         switch (item.getItemId()) {
+            case R.id.menu_add_contact: {
+                final CharSequence digits = mDigits.getText();
+                DialerUtils.startActivityWithErrorToast(getActivity(),
+                        DialtactsActivity.getAddNumberToContactIntent(digits));
+                return true;
+            }
             case R.id.menu_2s_pause:
                 updateDialString(PAUSE);
                 return true;
             case R.id.menu_add_wait:
                 updateDialString(WAIT);
                 return true;
-            case R.id.menu_video_call_settings:
-                startActivity(getVTCallSettingsIntent());
+            case R.id.menu_send_message: {
+                final CharSequence digits = mDigits.getText();
+                final Intent smsIntent = new Intent(Intent.ACTION_SENDTO,
+                        Uri.fromParts(ContactsUtils.SCHEME_SMSTO, digits.toString(), null));
+                smsIntent.setComponent(mSmsPackageComponentName);
+                DialerUtils.startActivityWithErrorToast(getActivity(), smsIntent);
                 return true;
+            }
             case R.id.menu_ip_call_by_slot1:
-                ipCallBySlot(MSimConstants.SUB1);
+                ipCallBySlot(PhoneConstants.SUB1);
                 return true;
             case R.id.menu_ip_call_by_slot2:
-                ipCallBySlot(MSimConstants.SUB2);
+                ipCallBySlot(PhoneConstants.SUB2);
                 return true;
-            case R.id.speed_dial:
-                startActivity(new Intent(getActivity(), SpeedDialListActivity.class));
-                return true;
+            case R.id.menu_video_call:
+                final String number = mDigits.getText().toString();
+                if (CallUtil.isCSVTEnabled()) {
+                    getActivity().startActivity(CallUtil.getCSVTCallIntent(number));
+                } else if (false) {
+                    //add support for ims video call;
+                }
             default:
                 return false;
         }
@@ -1721,42 +1745,29 @@ public class DialpadFragment extends Fragment
         }
     }
 
-    @Override
-    public void onAttach(Activity activity) {
-        super.onAttach(activity);
-        mContext = activity;
-    }
-
-    private void ipCallBySlot(int subscription) {
-        if (MoreContactUtils.isIPNumberExist(getActivity(), subscription)) {
-            Intent callIntent = new Intent(CallUtil.getCallIntent(getValidDialNumber()));
-            callIntent.putExtra(PhoneConstants.IP_CALL, true);
-            callIntent.putExtra(MSimConstants.SUBSCRIPTION_KEY, subscription);
-            startActivity(callIntent);
-        } else {
-            MoreContactUtils.showNoIPNumberDialog(mContext, subscription);
-        }
-    }
-
     /**
      * Update the enabledness of the "Dial" and "Backspace" buttons if applicable.
      */
-    private void updateDialAndDeleteButtonEnabledState() {
+    private void updateDeleteButtonEnabledState() {
         if (getActivity() == null) {
             return;
         }
         final boolean digitsNotEmpty = !isDigitsEmpty();
         mDelete.setEnabled(digitsNotEmpty);
-        // On CDMA phones, if we're already on a call, we *always* enable the Dial button (since
-        // you can press it without entering any digits to send an empty flash.)
-        if (phoneIsCdma() && phoneIsOffhook()) {
-            ((HostInterface) getActivity()).setDialButtonEnabled(true);
+    }
+
+    /**
+     * Handle transitions for the menu button depending on the state of the digits edit text.
+     * Transition out when going from digits to no digits and transition in when the first digit
+     * is pressed.
+     * @param transitionIn True if transitioning in, False if transitioning out
+     */
+    private void updateMenuOverflowButton(boolean transitionIn) {
+        mOverflowMenuButton = mDialpadView.getOverflowMenuButton();
+        if (transitionIn) {
+            AnimUtils.fadeIn(mOverflowMenuButton, AnimUtils.DEFAULT_DURATION);
         } else {
-            // Common case: GSM, or CDMA but not on a call. Enable the Dial button if something
-            // has been entered into the digits field, or if there is a last dialed number that
-            // could be redialed.
-            ((HostInterface) getActivity()).setDialButtonEnabled(
-                    digitsNotEmpty || !TextUtils.isEmpty(mLastNumberDialed));
+            AnimUtils.fadeOut(mOverflowMenuButton, AnimUtils.DEFAULT_DURATION);
         }
     }
 
@@ -1765,29 +1776,19 @@ public class DialpadFragment extends Fragment
      *
      * @return true if voicemail is enabled and accessibly. Note that this can be false
      * "temporarily" after the app boot.
-     * @see MSimTelephonyManager#getVoiceMailNumber()
+     * @see TelephonyManager#getVoiceMailNumber()
      */
     private boolean isVoicemailAvailable() {
-        boolean promptEnabled = Settings.Global.getInt(getActivity().getContentResolver(),
-                Settings.Global.MULTI_SIM_VOICE_PROMPT, 0) == 1;
-        Log.d(TAG, "prompt enabled :  "+ promptEnabled);
-
+        boolean promptEnabled = SubscriptionManager.isVoicePromptEnabled();
         if (promptEnabled) {
             return hasVMNumber();
         } else {
+            long subId = SubscriptionManager.getDefaultVoiceSubId();
             try {
-                if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-                    mSubscription = MSimTelephonyManager.getDefault().
-                            getPreferredVoiceSubscription();
-                    Log.d(TAG, "Voicemail preferred sub id = "+ mSubscription);
-                    return (MSimTelephonyManager.getDefault().
-                            getVoiceMailNumber(mSubscription) != null);
-                } else {
-                    return getTelephonyManager().getVoiceMailNumber() != null;
-                }
+                return getTelephonyManager().getVoiceMailNumber(subId) != null;
             } catch (SecurityException se) {
                 // Possibly no READ_PHONE_STATE privilege.
-                Log.e(TAG, "SecurityException is thrown. Maybe privilege isn't sufficient.");
+                Log.w(TAG, "SecurityException is thrown. Maybe privilege isn't sufficient.");
             }
         }
         return false;
@@ -1795,11 +1796,11 @@ public class DialpadFragment extends Fragment
 
     private boolean hasVMNumber() {
         boolean hasVMNum = false;
-        int phoneCount = MSimTelephonyManager.getDefault().getPhoneCount();
-
+        int phoneCount = getTelephonyManager().getPhoneCount();
         for (int i = 0; i < phoneCount; i++) {
             try {
-                hasVMNum = MSimTelephonyManager.getDefault().getVoiceMailNumber(i) != null;
+                long[] subId = SubscriptionManager.getSubId(i);
+                hasVMNum = getTelephonyManager().getVoiceMailNumber(subId[0]) != null;
             } catch (SecurityException se) {
                 // Possibly no READ_PHONE_STATE privilege.
                 Log.e(TAG, "hasVMNumber: SecurityException, Maybe privilege isn't sufficient.");
@@ -1855,6 +1856,13 @@ public class DialpadFragment extends Fragment
     }
 
     /**
+     * @return true if the widget with the mRecipients is empty.
+     */
+    private boolean isRecipientEmpty() {
+        return  (mRecipients == null) || (mRecipients.length() == 0);
+    }
+
+    /**
      * Starts the asyn query to get the last dialed/outgoing
      * number. When the background query finishes, mLastNumberDialed
      * is set to the last dialed number or an empty string if none
@@ -1876,7 +1884,7 @@ public class DialpadFragment extends Fragment
                             // doing anything here.
                             if (getActivity() == null) return;
                             mLastNumberDialed = number;
-                            updateDialAndDeleteButtonEnabledState();
+                            updateDeleteButtonEnabledState();
                         }
                     });
         mCallLog.getLastOutgoingCall(lastCallArgs);
@@ -1885,80 +1893,38 @@ public class DialpadFragment extends Fragment
     private Intent newFlashIntent() {
         final Intent intent = CallUtil.getCallIntent(EMPTY_NUMBER);
         intent.putExtra(EXTRA_SEND_EMPTY_FLASH, true);
-        intent.putExtra(SUBSCRIPTION_KEY, mSubscription);
         return intent;
     }
-
-    // add for CSVT start
-    private static Intent getVTCallIntent(String number) {
-        Intent intent = new Intent("com.borqs.videocall.action.LaunchVideoCallScreen");
-        intent.addCategory(Intent.CATEGORY_DEFAULT);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-
-        intent.putExtra("IsCallOrAnswer", true); // true as a
-        // call,
-        // while
-        // false as
-        // answer
-
-        intent.putExtra("LaunchMode", 1); // nLaunchMode: 1 as
-        // telephony, while
-        // 0 as socket
-        intent.putExtra("call_number_key", number);
-        return intent;
-    }
-
-    private static Intent getVTCallSettingsIntent() {
-        Intent intent = new Intent("com.borqs.videocall.action.LaunchVideoCallSettingsScreen");
-        intent.addCategory(Intent.CATEGORY_DEFAULT);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-        return intent;
-    }
-
-    private String getValidDialNumber() {
-        if (mDigits != null)
-            return mDigits.getText().toString();
-        else
-            return null;
-    }
-
-    public static boolean isVTActive() {
-        return DialtactsActivity.isCsvtActive();
-    }
-    private boolean isVTSupported() {
-        return SystemProperties.getBoolean("persist.radio.csvt.enabled", false);
-        //return this.getResources().getBoolean(R.bool.csvt_enabled);
-    }
-
-    // add for csvt end
 
     @Override
     public void onHiddenChanged(boolean hidden) {
         super.onHiddenChanged(hidden);
         final DialtactsActivity activity = (DialtactsActivity) getActivity();
+        final DialpadView dialpadView = (DialpadView) getView().findViewById(R.id.dialpad_view);
         if (activity == null) return;
-        if (hidden) {
-            activity.showSearchBar();
-        } else {
-            activity.hideSearchBar();
+        if (!hidden && !isDialpadChooserVisible()) {
+            if (mAnimate) {
+                dialpadView.animateShow();
+            }
+            mFloatingActionButtonController.scaleIn(mAnimate ? mDialpadSlideInDuration : 0);
+            activity.onDialpadShown();
             mDigits.requestFocus();
+        }
+        if (hidden && mAnimate) {
+            mFloatingActionButtonController.scaleOut();
         }
     }
 
-    public void setAdjustTranslationForAnimation(boolean value) {
-        mAdjustTranslationForAnimation = value;
+    public void setAnimate(boolean value) {
+        mAnimate = value;
+    }
+
+    public boolean getAnimate() {
+        return mAnimate;
     }
 
     public void setYFraction(float yFraction) {
-        ((DialpadSlidingLinearLayout) getView()).setYFraction(yFraction);
-    }
-
-    private Resources getResourcesForLocale(Locale locale) {
-        Configuration defaultConfig = getResources().getConfiguration();
-        Configuration overrideConfig = new Configuration(defaultConfig);
-        overrideConfig.setLocale(locale);
-        Context localeContext = getActivity().createConfigurationContext(overrideConfig);
-        return localeContext.getResources();
+        ((DialpadSlidingRelativeLayout) getView()).setYFraction(yFraction);
     }
 
     private void callSpeedNumber(int id) {
@@ -1980,10 +1946,11 @@ public class DialpadFragment extends Fragment
         if (phoneNumber == null) {
             showNoSpeedNumberDialog(number);
         } else {
-            Intent intent = new Intent(Intent.ACTION_CALL_PRIVILEGED);
-            intent.setData(Uri.fromParts("tel", phoneNumber, null));
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
+            final DialtactsActivity activity = getActivity() instanceof DialtactsActivity
+                    ? (DialtactsActivity) getActivity() : null;
+            final Intent intent = CallUtil.getCallIntent(phoneNumber,
+                    activity != null ? activity.getCallOrigin() : null);
+            DialerUtils.startActivityWithErrorToast(getActivity(), intent);
             getActivity().finish();
         }
     }

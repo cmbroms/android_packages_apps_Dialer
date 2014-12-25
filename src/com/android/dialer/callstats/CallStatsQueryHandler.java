@@ -29,7 +29,6 @@ import android.os.Looper;
 import android.os.Message;
 import android.provider.CallLog.Calls;
 import android.util.Log;
-import android.util.Pair;
 
 import com.android.contacts.common.CallUtil;
 import com.android.contacts.common.util.UriUtils;
@@ -153,18 +152,15 @@ public class CallStatsQueryHandler extends AsyncQueryHandler {
     }
 
     private Map<ContactInfo, CallStatsDetails> processData(Cursor cursor) {
-        final ArrayList<Pair<ContactInfo, CallStatsDetails>> infos =
-                new ArrayList<Pair<ContactInfo, CallStatsDetails>>();
+        final Map<ContactInfo, CallStatsDetails> result = new HashMap<ContactInfo, CallStatsDetails>();
+        final ArrayList<ContactInfo> infos = new ArrayList<ContactInfo>();
+        final ArrayList<CallStatsDetails> calls = new ArrayList<CallStatsDetails>();
         CallStatsDetails pending = null;
 
         cursor.moveToFirst();
 
         while (!cursor.isAfterLast()) {
             final String number = cursor.getString(CallStatsQuery.NUMBER);
-            if (number == null) {
-                cursor.moveToNext();
-                continue;
-            }
             final long duration = cursor.getLong(CallStatsQuery.DURATION);
             final int callType = cursor.getInt(CallStatsQuery.CALL_TYPE);
 
@@ -177,7 +173,8 @@ public class CallStatsQueryHandler extends AsyncQueryHandler {
 
                 pending = new CallStatsDetails(number, numberPresentation,
                         info, countryIso, geocode, date);
-                infos.add(Pair.create(info, pending));
+                infos.add(info);
+                calls.add(pending);
             }
 
             pending.addTimeOrMissed(callType, duration);
@@ -185,38 +182,45 @@ public class CallStatsQueryHandler extends AsyncQueryHandler {
         }
 
         cursor.close();
-        return mergeItemsByNumber(infos);
+        mergeItemsByNumber(calls, infos);
+
+        for (int i = 0; i < calls.size(); i++) {
+            result.put(infos.get(i), calls.get(i));
+        }
+
+        return result;
     }
 
-    private Map<ContactInfo, CallStatsDetails> mergeItemsByNumber(List<Pair<ContactInfo,
-            CallStatsDetails>> infos) {
-        final HashMap<ContactInfo, CallStatsDetails> result =
-                new HashMap<ContactInfo, CallStatsDetails>();
+    private void mergeItemsByNumber(List<CallStatsDetails> calls, List<ContactInfo> infos) {
+        // temporarily store items marked for removal
+        final ArrayList<CallStatsDetails> callsToRemove = new ArrayList<CallStatsDetails>();
+        final ArrayList<ContactInfo> infosToRemove = new ArrayList<ContactInfo>();
 
-        for (int i = 0; i < infos.size(); i++) {
-            final Pair<ContactInfo, CallStatsDetails> info = infos.get(i);
-            final CallStatsDetails outerItem = info.second;
+        for (int i = 0; i < calls.size(); i++) {
+            final CallStatsDetails outerItem = calls.get(i);
             final String currentFormattedNumber = outerItem.number.toString();
 
-            for (int j = infos.size() - 1; j > i; j--) {
-                final CallStatsDetails innerItem = infos.get(j).second;
+            for (int j = calls.size() - 1; j > i; j--) {
+                final CallStatsDetails innerItem = calls.get(j);
                 final String innerNumber = innerItem.number.toString();
 
                 if (CallUtil.phoneNumbersEqual(currentFormattedNumber, innerNumber)) {
                     outerItem.mergeWith(innerItem);
-                    // make sure we're not counting twice in case we're dealing with
-                    // multiple different formats
+                    //make sure we're not counting twice in case we're dealing with
+                    //multiple different formats
                     innerItem.reset();
+                    callsToRemove.add(innerItem);
+                    infosToRemove.add(infos.get(j));
                 }
-            }
-
-            // only add items which weren't merged with others before
-            if (outerItem.getFullDuration() != 0 || outerItem.getTotalCount() != 0) {
-                result.put(info.first, info.second);
             }
         }
 
-        return result;
+        for (CallStatsDetails call : callsToRemove) {
+            calls.remove(call);
+        }
+        for (ContactInfo info : infosToRemove) {
+            infos.remove(info);
+        }
     }
 
     private ContactInfo getContactInfoFromCallStats(Cursor c) {

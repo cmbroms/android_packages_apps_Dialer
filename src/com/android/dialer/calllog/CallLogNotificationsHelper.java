@@ -18,33 +18,17 @@ package com.android.dialer.calllog;
 
 import android.content.Context;
 import android.content.Intent;
-import android.os.RemoteException;
-import android.os.ServiceManager;
-import android.os.SystemProperties;
-import android.util.Log;
-
-import com.android.internal.telephony.ITelephony;
+import android.telecom.TelecomManager;
 
 /**
  * Helper class operating on call log notifications.
  */
 public class CallLogNotificationsHelper {
-    private static final String TAG = "CallLogNotificationsHelper";
-
     /** Removes the missed call notifications. */
-    public static void removeMissedCallNotifications() {
-        try {
-            ITelephony telephony =
-                    ITelephony.Stub.asInterface(ServiceManager.getService("phone"));
-            if (telephony != null) {
-                telephony.cancelMissedCallsNotification();
-            } else {
-                Log.w(TAG, "Telephony service is null, can't call " +
-                        "cancelMissedCallsNotification");
-            }
-        } catch (RemoteException e) {
-            Log.e(TAG, "Failed to clear missed calls notification due to remote exception");
-        }
+    public static void removeMissedCallNotifications(Context context) {
+        TelecomManager telecomManager = (TelecomManager)
+                context.getSystemService(Context.TELECOM_SERVICE);
+        telecomManager.cancelMissedCallsNotification();
     }
 
     /** Update the voice mail notifications. */
@@ -52,19 +36,5 @@ public class CallLogNotificationsHelper {
         Intent serviceIntent = new Intent(context, CallLogNotificationsService.class);
         serviceIntent.setAction(CallLogNotificationsService.ACTION_UPDATE_NOTIFICATIONS);
         context.startService(serviceIntent);
-    }
-
-    public static boolean isVTSupported() {
-        return SystemProperties.getBoolean("persist.radio.csvt.enabled"
-            /* TelephonyProperties.PROPERTY_CSVT_ENABLED*/, false);
-    }
-
-    /** Send broadcast to let VideoCall app cancel the missed vtcall notifications. */
-    public static void removeMissedVTCallNotifications(Context context) {
-        if (isVTSupported()) {
-            Intent intent = new Intent("com.borqs.videocall.action.clearMissedVTCall");
-            intent.putExtra("update_calllog", false);
-            context.sendBroadcast(intent);
-        }
     }
 }

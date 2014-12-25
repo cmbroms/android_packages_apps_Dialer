@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2013-2014, The Linux Foundation. All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are
@@ -39,7 +39,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.provider.Settings;
-import android.telephony.MSimTelephonyManager;
+import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.LayoutInflater;
@@ -55,7 +56,7 @@ import android.widget.TextView;
 
 import com.android.contacts.common.ContactPhotoManager;
 import com.android.contacts.common.ContactPhotoManager.DefaultImageRequest;
-import com.android.internal.telephony.MSimConstants;
+import com.android.internal.telephony.PhoneConstants;
 
 public class SpeedDialListActivity extends ListActivity implements
         AdapterView.OnItemClickListener, PopupMenu.OnMenuItemClickListener {
@@ -121,6 +122,10 @@ public class SpeedDialListActivity extends ListActivity implements
 
         ListView listview = getListView();
         listview.setOnItemClickListener(this);
+
+        // compensate for action bar overlay specified in theme
+        int actionBarHeight = getResources().getDimensionPixelSize(R.dimen.action_bar_height);
+        listview.setPaddingRelative(0, actionBarHeight, 0, 0);
 
         final ActionBar actionBar = getActionBar();
         actionBar.setDisplayShowHomeEnabled(true);
@@ -195,15 +200,14 @@ public class SpeedDialListActivity extends ListActivity implements
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
         if (position == 0) {
             Intent intent = new Intent(ACTION_ADD_VOICEMAIL);
-            if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-                //if multi sim enable, should let user select which sim to be set.
-                int sub = Settings.Global.getInt(getContentResolver(),
-                    Settings.Global.MULTI_SIM_VOICE_CALL_SUBSCRIPTION, 0);
+            if (TelephonyManager.getDefault().getPhoneCount() > 1) {
+                long sub = SubscriptionManager.getDefaultVoiceSubId();
                 intent.setClassName("com.android.phone",
                         "com.android.phone.MSimCallFeaturesSubSetting");
-                intent.putExtra(MSimConstants.SUBSCRIPTION_KEY, sub);
+                intent.putExtra(PhoneConstants.SUBSCRIPTION_KEY, sub);
             } else {
-                intent.setClassName("com.android.phone", "com.android.phone.CallFeaturesSetting");
+                intent.setClassName("com.android.phone",
+                        "com.android.phone.CallFeaturesSetting");
             }
             try {
                 startActivity(intent);
@@ -319,15 +323,17 @@ public class SpeedDialListActivity extends ListActivity implements
 
             if (record != null && record.contactId != -1) {
                 DefaultImageRequest request = new DefaultImageRequest(record.name,
-                        record.normalizedNumber);
+                        record.normalizedNumber, true /* isCircular */);
                 mPhotoManager.removePhoto(photo);
-                mPhotoManager.loadThumbnail(photo, record.photoId, false, request);
+                mPhotoManager.loadThumbnail(photo, record.photoId,
+                        false /* darkTheme */, true /* isCircular */, request);
                 photo.assignContactUri(ContentUris.withAppendedId(
                         ContactsContract.Contacts.CONTENT_URI, record.contactId));
                 photo.setVisibility(View.VISIBLE);
             } else {
                 photo.setVisibility(View.GONE);
             }
+            photo.setOverlay(null);
 
             return convertView;
         }

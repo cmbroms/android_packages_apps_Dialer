@@ -14,6 +14,7 @@
 
 package com.android.dialer.calllog;
 
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -23,6 +24,7 @@ import android.provider.ContactsContract.CommonDataKinds.Phone;
 import android.provider.ContactsContract.Contacts;
 import android.provider.ContactsContract.DisplayNameSources;
 import android.provider.ContactsContract.PhoneLookup;
+import android.provider.ContactsContract.RawContacts;
 import android.provider.Settings;
 import android.provider.Telephony;
 import android.telephony.PhoneNumberUtils;
@@ -30,13 +32,13 @@ import android.text.TextUtils;
 import android.widget.Toast;
 
 import com.android.contacts.common.util.Constants;
+import com.android.contacts.common.util.PhoneNumberHelper;
 import com.android.contacts.common.util.UriUtils;
-import com.android.dialer.R;
 import com.android.dialer.lookup.LookupCache;
+import com.android.dialer.R;
 import com.android.dialer.service.CachedNumberLookupService;
 import com.android.dialer.service.CachedNumberLookupService.CachedContactInfo;
 import com.android.dialerbind.ObjectFactory;
-import com.android.internal.telephony.util.BlacklistUtils;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -73,13 +75,13 @@ public class ContactInfoHelper {
         final ContactInfo info;
 
         // Determine the contact info.
-        if (PhoneNumberUtils.isUriNumber(number)) {
+        if (PhoneNumberHelper.isUriNumber(number)) {
             // This "number" is really a SIP address.
             ContactInfo sipInfo = queryContactInfoForSipAddress(number);
             if (sipInfo == null || sipInfo == ContactInfo.EMPTY) {
                 // Check whether the "username" part of the SIP address is
                 // actually the phone number of a contact.
-                String username = PhoneNumberUtils.getUsernameFromUriNumber(number);
+                String username = PhoneNumberHelper.getUsernameFromUriNumber(number);
                 if (PhoneNumberUtils.isGlobalPhoneNumber(username)) {
                     sipInfo = queryContactInfoForPhoneNumber(username, countryIso);
                 }
@@ -107,6 +109,8 @@ public class ContactInfoHelper {
                 updatedInfo = new ContactInfo();
                 updatedInfo.number = number;
                 updatedInfo.formattedNumber = formatPhoneNumber(number, null, countryIso);
+                updatedInfo.normalizedNumber = PhoneNumberUtils.formatNumberToE164(
+                        number, countryIso);
                 updatedInfo.lookupUri = createTemporaryContactUri(updatedInfo.formattedNumber);
             } else {
                 updatedInfo = info;
@@ -156,6 +160,7 @@ public class ContactInfoHelper {
         final ContactInfo info;
         Cursor phonesCursor =
                 mContext.getContentResolver().query(uri, PhoneQuery._PROJECTION, null, null, null);
+        long id = -1;
 
         if (phonesCursor != null) {
             try {
@@ -174,8 +179,22 @@ public class ContactInfoHelper {
                     info.photoUri =
                             UriUtils.parseUriOrNull(phonesCursor.getString(PhoneQuery.PHOTO_URI));
                     info.formattedNumber = null;
+                    id = contactId;
                 } else {
                     info = ContactInfo.EMPTY;
+                }
+                if (id != -1) {
+                    Uri contactUri = ContentUris.withAppendedId(
+                            Contacts.CONTENT_URI, id);
+                    Cursor cursor = mContext.getContentResolver().query(
+                            contactUri,
+                            new String[] { RawContacts.ACCOUNT_TYPE, RawContacts.ACCOUNT_NAME },
+                            null, null, null);
+                    if (cursor != null && cursor.getCount() > 0 && cursor.moveToFirst()) {
+                        info.accountType = cursor.getString(0);
+                        info.accountName = cursor.getString(1);
+                        cursor.close();
+                    }
                 }
             } finally {
                 phonesCursor.close();
@@ -237,7 +256,11 @@ public class ContactInfoHelper {
         } else if (mCachedNumberLookupService != null) {
             CachedContactInfo cacheInfo =
                     mCachedNumberLookupService.lookupCachedContactFromNumber(mContext, number);
-            info = cacheInfo != null ? cacheInfo.getContactInfo() : null;
+            if (cacheInfo != null) {
+                info = cacheInfo.getContactInfo().isBadData ? null : cacheInfo.getContactInfo();
+            } else {
+                info = null;
+            }
         }
         return info;
     }
@@ -257,7 +280,7 @@ public class ContactInfoHelper {
             return "";
         }
         // If "number" is really a SIP address, don't try to do any formatting at all.
-        if (PhoneNumberUtils.isUriNumber(number)) {
+        if (PhoneNumberHelper.isUriNumber(number)) {
             return number;
         }
         if (TextUtils.isEmpty(countryIso)) {
@@ -265,6 +288,48 @@ public class ContactInfoHelper {
         }
         return PhoneNumberUtils.formatNumber(number, normalizedNumber, countryIso);
     }
+
+    /**
+     * Parses the given URI to determine the original lookup key of the contact.
+     */
+    public static String getLookupKeyFromUri(Uri lookupUri) {
+        // Would be nice to be able to persist the lookup key somehow to avoid having to parse
+        // the uri entirely just to retrieve the lookup key, but every uri is already parsed
+        // once anyway to check if it is an encoded JSON uri, so this has negligible effect
+        // on performance.
+        if (lookupUri != null && !UriUtils.isEncodedContactUri(lookupUri)) {
+            final List<String> segments = lookupUri.getPathSegments();
+            // This returns the third path segment of the uri, where the lookup key is located.
+            // See {@link android.provider.ContactsContract.Contacts#CONTENT_LOOKUP_URI}.
+            return (segments.size() < 3) ? null : Uri.encode(segments.get(2));
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Given a contact's sourceType, return true if the contact is a business
+     *
+     * @param sourceType sourceType of the contact. This is usually populated by
+     *        {@link #mCachedNumberLookupService}.
+     */
+    public boolean isBusiness(int sourceType) {
+        return mCachedNumberLookupService != null
+                && mCachedNumberLookupService.isBusiness(sourceType);
+    }
+
+    /**
+     * This function looks at a contact's source and determines if the user can
+     * mark caller ids from this source as invalid.
+     *
+     * @param sourceType The source type to be checked
+     * @param objectId The ID of the Contact object.
+     * @return true if contacts from this source can be marked with an invalid caller id
+     */
+    public boolean canReportAsInvalid(int sourceType, String objectId) {
+        return mCachedNumberLookupService != null
+                && mCachedNumberLookupService.canReportAsInvalid(sourceType, objectId);
+     }
 
     /**
      * Checks whether calls can be blacklisted; that is, whether the
@@ -281,40 +346,17 @@ public class ContactInfoHelper {
      * @param number the number to be blacklisted
      */
     public void addNumberToBlacklist(String number) {
-        if (BlacklistUtils.addOrUpdate(mContext, number,
-                BlacklistUtils.BLOCK_CALLS, BlacklistUtils.BLOCK_CALLS)) {
+        ContentValues cv = new ContentValues();
+        cv.put(Telephony.Blacklist.PHONE_MODE, 1);
+
+        Uri uri = Uri.withAppendedPath(Telephony.Blacklist.CONTENT_FILTER_BYNUMBER_URI, number);
+        int count = mContext.getContentResolver().update(uri, cv, null, null);
+
+        if (count != 0) {
             // Give the user some feedback
             String message = mContext.getString(R.string.toast_added_to_blacklist, number);
             Toast.makeText(mContext, message, Toast.LENGTH_SHORT).show();
         }
     }
 
-    /**
-     * Parses the given URI to determine the original lookup key of the contact.
-     */
-    public static String getLookupKeyFromUri(Uri lookupUri) {
-        // Would be nice to be able to persist the lookup key somehow to avoid having to parse
-        // the uri entirely just to retrieve the lookup key, but every uri is already parsed
-        // once anyway to check if it is an encoded JSON uri, so this has negligible effect
-        // on performance.
-        if (lookupUri != null && !UriUtils.isEncodedContactUri(lookupUri)) {
-            final List<String> segments = lookupUri.getPathSegments();
-            // This returns the third path segment of the uri, where the lookup key is located.
-            // See {@link android.provider.ContactsContract.Contacts#CONTENT_LOOKUP_URI}.
-            return (segments.size() < 3) ? null : segments.get(2);
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * Given a contact's sourceType, return true if the contact is a business
-     *
-     * @param sourceType sourceType of the contact. This is usually populated by
-     *        {@link #mCachedNumberLookupService}.
-     */
-    public boolean isBusiness(int sourceType) {
-        return mCachedNumberLookupService != null
-                && mCachedNumberLookupService.isBusiness(sourceType);
-    }
 }

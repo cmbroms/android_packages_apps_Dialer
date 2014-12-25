@@ -31,6 +31,8 @@
         <attr name="call_log_voicemail_status_action_text_color" format="color" />
     </declare-styleable>
 
+    <declare-styleable name="SearchEditTextLayout" />
+
     <declare-styleable name="AnchoredScrollView">
         <attr name="anchorView" format="reference" />
         <attr name="anchorAtBottom" format="boolean" />
@@ -42,10 +44,6 @@
         <attr name="greenColor" format="color" />
         <attr name="blueColor" format="color" />
         <attr name="backgroundColor" format="color" />
-    </declare-styleable>
-
-    <declare-styleable name="PieChartView">
-        <attr name="outlineColor" format="color" />
     </declare-styleable>
 
 </resources>

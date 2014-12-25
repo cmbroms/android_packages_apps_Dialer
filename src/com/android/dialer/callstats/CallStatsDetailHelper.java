@@ -35,13 +35,13 @@ import com.android.dialer.calllog.PhoneNumberUtilsWrapper;
 public class CallStatsDetailHelper {
 
     private final Resources mResources;
-    private final PhoneNumberDisplayHelper mPhoneNumberDisplayHelper;
+    private final PhoneNumberDisplayHelper mPhoneNumberHelper;
     private final PhoneNumberUtilsWrapper mPhoneNumberUtilsWrapper;
 
     public CallStatsDetailHelper(Resources resources, PhoneNumberUtilsWrapper phoneUtils) {
         mResources = resources;
+        mPhoneNumberHelper = new PhoneNumberDisplayHelper(resources);
         mPhoneNumberUtilsWrapper = phoneUtils;
-        mPhoneNumberDisplayHelper = new PhoneNumberDisplayHelper(mPhoneNumberUtilsWrapper, resources);
     }
 
     public void setCallStatsDetails(CallStatsDetailViews views,
@@ -59,7 +59,7 @@ public class CallStatsDetailHelper {
         final CharSequence nameText;
         final CharSequence numberText;
         final CharSequence labelText;
-        final CharSequence displayNumber = mPhoneNumberDisplayHelper.getDisplayNumber(
+        final CharSequence displayNumber = mPhoneNumberHelper.getDisplayNumber(
                 details.number, details.numberPresentation, details.formattedNumber);
 
         if (TextUtils.isEmpty(details.name)) {
@@ -121,7 +121,7 @@ public class CallStatsDetailHelper {
 
     public void setCallStatsDetailHeader(TextView nameView, CallStatsDetails details) {
         final CharSequence nameText;
-        final CharSequence displayNumber = mPhoneNumberDisplayHelper.getDisplayNumber(
+        final CharSequence displayNumber = mPhoneNumberHelper.getDisplayNumber(
                 details.number, details.numberPresentation,
                 mResources.getString(R.string.recentCalls_addToContact));
 

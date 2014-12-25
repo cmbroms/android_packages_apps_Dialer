@@ -1,6 +1,4 @@
 /*
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
- * Not a Contribution.
  * Copyright (C) 2006 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +20,6 @@ import android.app.AlertDialog;
 import android.app.KeyguardManager;
 import android.app.ProgressDialog;
 import android.content.ActivityNotFoundException;
-import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -33,22 +30,18 @@ import android.os.Looper;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.provider.Settings;
-import android.provider.Settings.SettingNotFoundException;
-import android.telephony.MSimTelephonyManager;
+import android.telecom.TelecomManager;
 import android.telephony.PhoneNumberUtils;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.android.common.io.MoreCloseables;
 import com.android.contacts.common.database.NoNullCursorAsyncQueryHandler;
 import com.android.internal.telephony.ITelephony;
-import com.android.internal.telephony.PhoneConstants;
-import com.android.internal.telephony.msim.ITelephonyMSim;
-import com.android.internal.telephony.TelephonyCapabilities;
-import com.android.internal.telephony.TelephonyIntents;
-
 /**
  * Helper class to listen for some magic character sequences
  * that are handled specially by the dialer.
@@ -64,8 +57,12 @@ import com.android.internal.telephony.TelephonyIntents;
 public class SpecialCharSequenceMgr {
     private static final String TAG = "SpecialCharSequenceMgr";
 
+    private static final String SECRET_CODE_ACTION = "android.provider.Telephony.SECRET_CODE";
     private static final String MMI_IMEI_DISPLAY = "*#06#";
     private static final String MMI_REGULATORY_INFO_DISPLAY = "*#07#";
+    private static final String MMI_OPEN_DIAG_MENU_DISPLAY = "*76278#";
+    private static final String MMI_FACTORY_MODE_DISPLAY = "#38378#";
+    private static final String MMI_ENGINEER_MODE_DISPLAY = "*#7548135*#";
     private static final String PRL_VERSION_DISPLAY = "*#0000#";
 
     /**
@@ -103,13 +100,29 @@ public class SpecialCharSequenceMgr {
         //get rid of the separators so that the string gets parsed correctly
         String dialString = PhoneNumberUtils.stripSeparators(input);
 
-        if (handlePRLVersion(context, dialString)
-                || handleIMEIDisplay(context, dialString, useSystemWindow)
-                || handleRegulatoryInfoDisplay(context, dialString)
-                || handlePinEntry(context, dialString)
-                || handleAdnEntry(context, dialString, textField)
-                || handleSecretCode(context, dialString)) {
-            return true;
+        if (context.getResources().getBoolean(R.bool.def_dialer_secretcode_enabled) ||
+                context.getResources().getBoolean(R.bool.def_dialer_settings_diagport_enabled)) {
+            if (handlePRLVersion(context, dialString)
+                    || handleIMEIDisplay(context, dialString, useSystemWindow)
+                    || handleRegulatoryInfoDisplay(context, dialString)
+                    || handleEngineerModeDisplay(context, dialString)
+                    || handlePinEntry(context, dialString)
+                    || handleAdnEntry(context, dialString, textField)
+                    || handleSecretCode(context, dialString)
+                    || handleFactorySetCode(context, dialString)
+                    || handleSetDiagPortCode(context, dialString)) {
+                return true;
+            }
+        } else {
+            if (handlePRLVersion(context, dialString)
+                    || handleIMEIDisplay(context, dialString, useSystemWindow)
+                    || handleRegulatoryInfoDisplay(context, dialString)
+                    || handleEngineerModeDisplay(context, dialString)
+                    || handlePinEntry(context, dialString)
+                    || handleAdnEntry(context, dialString, textField)
+                    || handleSecretCode(context, dialString)) {
+                return true;
+            }
         }
 
         return false;
@@ -125,6 +138,17 @@ public class SpecialCharSequenceMgr {
             } catch (ActivityNotFoundException e) {
                 Log.d(TAG, "no activity to handle showing device info");
             }
+        }
+        return false;
+    }
+
+    static private boolean handleSetDiagPortCode(Context context, String input) {
+        int len = input.length();
+        if (input.equals(MMI_OPEN_DIAG_MENU_DISPLAY)) {
+            Intent intent = new Intent(SECRET_CODE_ACTION,
+                    Uri.parse("android_secret_code://" + input.substring(1, len - 1)));
+            context.sendBroadcast(intent);
+            return true;
         }
         return false;
     }
@@ -159,12 +183,23 @@ public class SpecialCharSequenceMgr {
         // Secret codes are in the form *#*#<code>#*#*
         int len = input.length();
         if (len > 8 && input.startsWith("*#*#") && input.endsWith("#*#*")) {
-            Intent intent = new Intent(TelephonyIntents.SECRET_CODE_ACTION,
+            final Intent intent = new Intent(SECRET_CODE_ACTION,
                     Uri.parse("android_secret_code://" + input.substring(4, len - 4)));
             context.sendBroadcast(intent);
             return true;
         }
 
+        return false;
+    }
+
+    static boolean handleFactorySetCode(Context context, String input) {
+        int len = input.length();
+        if (input.equals(MMI_FACTORY_MODE_DISPLAY)) {
+            Intent intent = new Intent(SECRET_CODE_ACTION,
+                    Uri.parse("android_secret_code://" + input.substring(1, len - 1)));
+            context.sendBroadcast(intent);
+            return true;
+        }
         return false;
     }
 
@@ -181,7 +216,7 @@ public class SpecialCharSequenceMgr {
         TelephonyManager telephonyManager =
                 (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
         if (telephonyManager == null
-                || !TelephonyCapabilities.supportsAdn(telephonyManager.getCurrentPhoneType())) {
+                || telephonyManager.getPhoneType() != TelephonyManager.PHONE_TYPE_GSM) {
             return false;
         }
 
@@ -196,8 +231,6 @@ public class SpecialCharSequenceMgr {
         }
 
         int len = input.length();
-        Uri uri = null;
-
         if ((len > 1) && (len < 5) && (input.endsWith("#"))) {
             try {
                 // get the ordinal number of the sim contact
@@ -234,17 +267,9 @@ public class SpecialCharSequenceMgr {
                 // display the progress dialog
                 sc.progressDialog.show();
 
-                if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-                    int subscription = MSimTelephonyManager.getDefault().
-                            getPreferredVoiceSubscription();
-                    String[] adn = {"adn", "adn_sub2", "adn_sub3"};
-
-                    uri = Uri.parse("content://iccmsim/" + adn[subscription]);
-                } else {
-                    uri = Uri.parse("content://icc/adn");
-                }
-
                 // run the query.
+                long subId = SubscriptionManager.getDefaultVoiceSubId();
+                Uri uri = Uri.parse("content://icc/adn/subId/" + subId);
                 handler.startQuery(ADN_QUERY_TOKEN, sc, uri,
                         new String[]{ADN_PHONE_NUMBER_COLUMN_NAME}, null, null, null);
 
@@ -263,22 +288,12 @@ public class SpecialCharSequenceMgr {
 
     static boolean handlePinEntry(Context context, String input) {
         if ((input.startsWith("**04") || input.startsWith("**05")) && input.endsWith("#")) {
+            long subId = SubscriptionManager.getDefaultVoiceSubId();
             try {
-                if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-                    int subscription = 0;
-
-                    // On multisim targets handle PIN/PUK related MMI commands on
-                    // Voice preferred subscription.
-                    subscription = MSimTelephonyManager.getDefault()
-                            .getPreferredVoiceSubscription();
-                    return ITelephonyMSim.Stub.asInterface(ServiceManager.getService("phone_msim"))
-                            .handlePinMmi(input, subscription);
-                } else {
-                    return ITelephony.Stub.asInterface(ServiceManager.getService("phone"))
-                            .handlePinMmi(input);
-                }
-            } catch (RemoteException e) {
-                Log.e(TAG, "Failed to handlePinMmi due to remote exception");
+                return ITelephony.Stub.asInterface(ServiceManager.getService(
+                        Context.TELEPHONY_SERVICE)).handlePinMmiForSubscriber(subId, input);
+            } catch(RemoteException ex) {
+                Log.e(TAG, "Remote Exception "+ex);
                 return false;
             }
         }
@@ -286,27 +301,21 @@ public class SpecialCharSequenceMgr {
     }
 
     static boolean handleIMEIDisplay(Context context, String input, boolean useSystemWindow) {
-        if (input.equals(MMI_IMEI_DISPLAY)) {
-            if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-                return handleMSimIMEIDisplay(context);
-            }
+        TelephonyManager telephonyManager =
+                (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+        if (telephonyManager != null && input.equals(MMI_IMEI_DISPLAY)) {
             int phoneType;
-            if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-                int subscription = MSimTelephonyManager.getDefault().
-                        getPreferredVoiceSubscription();
-
-                phoneType = ((MSimTelephonyManager)context.getSystemService(
-                        Context.MSIM_TELEPHONY_SERVICE)).getCurrentPhoneType(subscription);
-            } else {
-                phoneType = ((TelephonyManager)context.getSystemService(
-                        Context.TELEPHONY_SERVICE)).getCurrentPhoneType();
+            long subId = SubscriptionManager.getDefaultVoiceSubId();
+            phoneType = telephonyManager.getCurrentPhoneType(subId);
+            if (telephonyManager.isMultiSimEnabled()) {
+                return handleMSimIMEIDisplay(context, telephonyManager);
             }
 
             if (phoneType == TelephonyManager.PHONE_TYPE_GSM) {
-                showIMEIPanel(context, useSystemWindow);
+                showIMEIPanel(context, useSystemWindow, telephonyManager);
                 return true;
             } else if (phoneType == TelephonyManager.PHONE_TYPE_CDMA) {
-                showMEIDPanel(context, useSystemWindow);
+                showMEIDPanel(context, useSystemWindow, telephonyManager);
                 return true;
             }
         }
@@ -314,25 +323,28 @@ public class SpecialCharSequenceMgr {
         return false;
     }
 
-    static boolean handleMSimIMEIDisplay(Context context) {
+    private static boolean handleMSimIMEIDisplay(Context context,
+            TelephonyManager telephonyManager) {
         StringBuffer deviceIds = new StringBuffer();
-        for (int i = 0; i < MSimTelephonyManager.getDefault().getPhoneCount(); i++) {
+        int titleId = R.string.device_id;
+        int count = telephonyManager.getPhoneCount();
+
+        for (int i = 0; i < count; i++) {
             if (i != 0) {
                 deviceIds.append("\n");
             }
-            int phoneType = MSimTelephonyManager.getDefault().getCurrentPhoneType(i);
+            int phoneType = telephonyManager.getCurrentPhoneType(i);
             if (phoneType != TelephonyManager.PHONE_TYPE_GSM
                     && phoneType != TelephonyManager.PHONE_TYPE_CDMA) {
                 return false;
             }
-            deviceIds.append(context
-                    .getString(PhoneConstants.PHONE_TYPE_CDMA == phoneType ? R.string.meid
-                            : R.string.imei)
-                    + " ");
-            deviceIds.append(MSimTelephonyManager.getDefault().getDeviceId(i));
+            deviceIds.append(context.getString(TelephonyManager.PHONE_TYPE_CDMA == phoneType
+                    ? R.string.meid : R.string.imei) + " ");
+            deviceIds.append(telephonyManager.getDeviceId(i));
         }
+
         AlertDialog alert = new AlertDialog.Builder(context)
-                .setTitle(R.string.msim_ime_dialog_title)
+                .setTitle(titleId)
                 .setMessage(deviceIds.toString())
                 .setPositiveButton(android.R.string.ok, null)
                 .setCancelable(false)
@@ -343,10 +355,7 @@ public class SpecialCharSequenceMgr {
     private static boolean handleRegulatoryInfoDisplay(Context context, String input) {
         if (input.equals(MMI_REGULATORY_INFO_DISPLAY)) {
             Log.d(TAG, "handleRegulatoryInfoDisplay() sending intent to settings app");
-            ComponentName regInfoDisplayActivity = new ComponentName(
-                    "com.android.settings", "com.android.settings.RegulatoryInfoDisplayActivity");
-            Intent showRegInfoIntent = new Intent("android.settings.SHOW_REGULATORY_INFO");
-            showRegInfoIntent.setComponent(regInfoDisplayActivity);
+            Intent showRegInfoIntent = new Intent(Settings.ACTION_SHOW_REGULATORY_INFO);
             try {
                 context.startActivity(showRegInfoIntent);
             } catch (ActivityNotFoundException e) {
@@ -362,14 +371,13 @@ public class SpecialCharSequenceMgr {
     // version of SpecialCharSequenceMgr.java.  (This will require moving
     // the phone app's TelephonyCapabilities.getDeviceIdLabel() method
     // into the telephony framework, though.)
-    private static void showIMEIPanel(Context context, boolean useSystemWindow) {
-        String imeiStr;
-        if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-            imeiStr = getMSimDeviceIds(context);
-        } else {
-            imeiStr = ((TelephonyManager)context.
-                    getSystemService(Context.TELEPHONY_SERVICE)).getDeviceId();
-        }
+
+    private static void showIMEIPanel(Context context, boolean useSystemWindow,
+            TelephonyManager telephonyManager) {
+        String imeiStr = null;
+        long subId = SubscriptionManager.getDefaultVoiceSubId();
+        int slotId = SubscriptionManager.getSlotId(subId);
+        imeiStr = telephonyManager.getDeviceId(slotId);
 
         AlertDialog alert = new AlertDialog.Builder(context)
                 .setTitle(R.string.imei)
@@ -379,14 +387,12 @@ public class SpecialCharSequenceMgr {
                 .show();
     }
 
-    private static void showMEIDPanel(Context context, boolean useSystemWindow) {
-        String meidStr;
-        if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-            meidStr = getMSimDeviceIds(context);
-        } else {
-            meidStr = ((TelephonyManager)context.
-                    getSystemService(Context.TELEPHONY_SERVICE)).getDeviceId();
-        }
+    private static void showMEIDPanel(Context context, boolean useSystemWindow,
+            TelephonyManager telephonyManager) {
+        String meidStr = null;
+        long subId = SubscriptionManager.getDefaultVoiceSubId();
+        int slotId = SubscriptionManager.getSlotId(subId);
+        meidStr = telephonyManager.getDeviceId(slotId);
 
         AlertDialog alert = new AlertDialog.Builder(context)
                 .setTitle(R.string.meid)
@@ -396,20 +402,14 @@ public class SpecialCharSequenceMgr {
                 .show();
     }
 
-    private static String getMSimDeviceIds(Context context) {
-        // Show all IMEI/MEIDs for Multi-SIM
-        int numPhones = MSimTelephonyManager.getDefault().getPhoneCount();
-
-        MSimTelephonyManager telephony = (MSimTelephonyManager)context.
-                getSystemService(Context.MSIM_TELEPHONY_SERVICE);
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < numPhones; i++) {
-            if (i != 0) {
-                sb.append("\n");
-            }
-            sb.append(telephony.getDeviceId(i));
+    static boolean handleEngineerModeDisplay(Context context, String input) {
+        if (input.equals(MMI_ENGINEER_MODE_DISPLAY)) {
+            Intent intent = new Intent(SECRET_CODE_ACTION,
+                    Uri.parse("android_secret_code://3878"));
+            context.sendBroadcast(intent);
+            return true;
         }
-        return sb.toString();
+        return false;
     }
 
     /*******
@@ -496,34 +496,38 @@ public class SpecialCharSequenceMgr {
          */
         @Override
         protected void onNotNullableQueryComplete(int token, Object cookie, Cursor c) {
-            sPreviousAdnQueryHandler = null;
-            if (mCanceled) {
-                return;
-            }
+            try {
+                sPreviousAdnQueryHandler = null;
+                if (mCanceled) {
+                    return;
+                }
 
-            SimContactQueryCookie sc = (SimContactQueryCookie) cookie;
+                SimContactQueryCookie sc = (SimContactQueryCookie) cookie;
 
-            // close the progress dialog.
-            sc.progressDialog.dismiss();
+                // close the progress dialog.
+                sc.progressDialog.dismiss();
 
-            // get the EditText to update or see if the request was cancelled.
-            EditText text = sc.getTextField();
+                // get the EditText to update or see if the request was cancelled.
+                EditText text = sc.getTextField();
 
-            // if the textview is valid, and the cursor is valid and postionable
-            // on the Nth number, then we update the text field and display a
-            // toast indicating the caller name.
-            if ((c != null) && (text != null) && (c.moveToPosition(sc.contactNum))) {
-                String name = c.getString(c.getColumnIndexOrThrow(ADN_NAME_COLUMN_NAME));
-                String number = c.getString(c.getColumnIndexOrThrow(ADN_PHONE_NUMBER_COLUMN_NAME));
+                // if the textview is valid, and the cursor is valid and postionable
+                // on the Nth number, then we update the text field and display a
+                // toast indicating the caller name.
+                if ((c != null) && (text != null) && (c.moveToPosition(sc.contactNum))) {
+                    String name = c.getString(c.getColumnIndexOrThrow(ADN_NAME_COLUMN_NAME));
+                    String number = c.getString(c.getColumnIndexOrThrow(ADN_PHONE_NUMBER_COLUMN_NAME));
 
-                // fill the text in.
-                text.getText().replace(0, 0, number);
+                    // fill the text in.
+                    text.getText().replace(0, 0, number);
 
-                // display the name as a toast
-                Context context = sc.progressDialog.getContext();
-                name = context.getString(R.string.menu_callNumber, name);
-                Toast.makeText(context, name, Toast.LENGTH_SHORT)
-                    .show();
+                    // display the name as a toast
+                    Context context = sc.progressDialog.getContext();
+                    name = context.getString(R.string.menu_callNumber, name);
+                    Toast.makeText(context, name, Toast.LENGTH_SHORT)
+                        .show();
+                }
+            } finally {
+                MoreCloseables.closeQuietly(c);
             }
         }
 

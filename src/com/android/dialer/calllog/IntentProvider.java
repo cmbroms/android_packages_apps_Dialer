@@ -1,8 +1,5 @@
 /*
  * Copyright (C) 2011 The Android Open Source Project
- * Copyright (C) 2013, The Linux Foundation. All rights reserved.
- *
- * Not a Contribution.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,16 +19,12 @@ package com.android.dialer.calllog;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
 import android.net.Uri;
 import android.provider.CallLog.Calls;
-import android.telephony.PhoneNumberUtils;
-import android.util.Log;
+import android.telecom.PhoneAccountHandle;
 
 import com.android.contacts.common.CallUtil;
-import com.android.contacts.common.MoreContactUtils;
 import com.android.dialer.CallDetailActivity;
-import com.android.internal.telephony.MSimConstants;
 
 /**
  * Used to create an intent to attach to an action in the call log.
@@ -44,31 +37,45 @@ public abstract class IntentProvider {
 
     public abstract Intent getIntent(Context context);
 
+    public static IntentProvider getReturnCallIntentProvider(final String number) {
+        return getReturnCallIntentProvider(number, null);
+    }
+
     public static IntentProvider getReturnCallIntentProvider(final String number,
-            final int subscription) {
+            final PhoneAccountHandle accountHandle) {
         return new IntentProvider() {
             @Override
             public Intent getIntent(Context context) {
-                if (MoreContactUtils.getEnabledSimCount() > 1) {
-                    Intent intent;
-                    if (PhoneNumberUtils.isUriNumber(number)) {
-                        intent = new Intent(Intent.ACTION_DIAL,
-                                Uri.fromParts(CallUtil.SCHEME_SIP, number, null));
-                    } else {
-                        intent = new Intent(Intent.ACTION_DIAL,
-                                Uri.fromParts(CallUtil.SCHEME_TEL, number, null));
-                    }
-                    return intent;
-                } else {
-                    Intent intent = CallUtil.getCallIntent(number);
-                    return intent;
-                }
+                return CallUtil.getCallIntent(number, accountHandle);
+            }
+        };
+    }
+
+    public static IntentProvider getReturnVideoCallIntentProvider(final String number) {
+        return getReturnVideoCallIntentProvider(number, null);
+    }
+
+    public static IntentProvider getReturnVideoCallIntentProvider(final String number,
+            final PhoneAccountHandle accountHandle) {
+        return new IntentProvider() {
+            @Override
+            public Intent getIntent(Context context) {
+                return CallUtil.getVideoCallIntent(number, accountHandle);
+            }
+        };
+    }
+
+    public static IntentProvider getReturnCSVTCallIntentProvider(final String number) {
+        return new IntentProvider() {
+            @Override
+            public Intent getIntent(Context context) {
+                return CallUtil.getCSVTCallIntent(number);
             }
         };
     }
 
     public static IntentProvider getPlayVoicemailIntentProvider(final long rowId,
-            final String voicemailUri, final int subscription) {
+            final String voicemailUri) {
         return new IntentProvider() {
             @Override
             public Intent getIntent(Context context) {
@@ -80,52 +87,39 @@ public abstract class IntentProvider {
                             Uri.parse(voicemailUri));
                 }
                 intent.putExtra(CallDetailActivity.EXTRA_VOICEMAIL_START_PLAYBACK, true);
-                intent.putExtra(MSimConstants.SUBSCRIPTION_KEY, subscription);
                 return intent;
             }
         };
     }
 
+    /**
+     * Retrieves the call details intent provider for an entry in the call log.
+     *
+     * @param id The call ID of the first call in the call group.
+     * @param extraIds The call ID of the other calls grouped together with the call.
+     * @param voicemailUri If call log entry is for a voicemail, the voicemail URI.
+     * @return The call details intent provider.
+     */
     public static IntentProvider getCallDetailIntentProvider(
-            final Cursor cursor, final int position, final long id, final int groupSize,
-            final int subscription) {
+            final long id, final long[] extraIds, final String voicemailUri) {
         return new IntentProvider() {
             @Override
             public Intent getIntent(Context context) {
-                if (cursor.isClosed()) {
-                    // There are reported instances where the cursor is already closed.
-                    // b/10937133
-                    // When causes a crash when it's accessed here.
-                    Log.e(TAG, "getCallDetailIntentProvider() cursor is already closed.");
-                    return null;
-                }
-
-                cursor.moveToPosition(position);
-
                 Intent intent = new Intent(context, CallDetailActivity.class);
                 // Check if the first item is a voicemail.
-                String voicemailUri = cursor.getString(CallLogQuery.VOICEMAIL_URI);
                 if (voicemailUri != null) {
                     intent.putExtra(CallDetailActivity.EXTRA_VOICEMAIL_URI,
                             Uri.parse(voicemailUri));
                 }
                 intent.putExtra(CallDetailActivity.EXTRA_VOICEMAIL_START_PLAYBACK, false);
 
-                if (groupSize > 1) {
-                    // We want to restore the position in the cursor at the end.
-                    long[] ids = new long[groupSize];
-                    // Copy the ids of the rows in the group.
-                    for (int index = 0; index < groupSize; ++index) {
-                        ids[index] = cursor.getLong(CallLogQuery.ID);
-                        cursor.moveToNext();
-                    }
-                    intent.putExtra(CallDetailActivity.EXTRA_CALL_LOG_IDS, ids);
+                if (extraIds != null && extraIds.length > 0) {
+                    intent.putExtra(CallDetailActivity.EXTRA_CALL_LOG_IDS, extraIds);
                 } else {
                     // If there is a single item, use the direct URI for it.
                     intent.setData(ContentUris.withAppendedId(
                             Calls.CONTENT_URI_WITH_VOICEMAIL, id));
                 }
-                intent.putExtra(MSimConstants.SUBSCRIPTION_KEY, subscription);
                 return intent;
             }
         };

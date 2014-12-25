@@ -18,25 +18,21 @@ package com.android.dialer.calllog;
 
 import android.content.Context;
 import android.provider.CallLog.Calls;
-import android.telephony.MSimTelephonyManager;
 import android.text.format.DateUtils;
+import android.text.format.Formatter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
-import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.android.dialer.DialtactsActivity;
+import com.android.contacts.common.CallUtil;
 import com.android.dialer.PhoneCallDetails;
 import com.android.dialer.R;
-import com.android.dialer.util.CallRecordingPlayer;
-import com.android.services.callrecorder.common.CallRecording;
-import com.android.services.callrecorder.CallRecorderService;
-import com.android.services.callrecorder.CallRecordingDataStore;
+import com.android.dialer.util.DialerUtils;
+import com.google.common.collect.Lists;
 
-import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Adapter for a ListView containing history items from the details of a call.
@@ -51,41 +47,18 @@ public class CallDetailHistoryAdapter extends BaseAdapter {
     private final LayoutInflater mLayoutInflater;
     private final CallTypeHelper mCallTypeHelper;
     private final PhoneCallDetails[] mPhoneCallDetails;
-    /** Whether the voicemail controls are shown. */
-    private final boolean mShowVoicemail;
-    /** Whether the call and SMS controls are shown. */
-    private final boolean mShowCallAndSms;
-    /** The controls that are shown on top of the history list. */
-    private final View mControls;
-    /** The listener to changes of focus of the header. */
-    private View.OnFocusChangeListener mHeaderFocusChangeListener =
-            new View.OnFocusChangeListener() {
-        @Override
-        public void onFocusChange(View v, boolean hasFocus) {
-            // When the header is focused, focus the controls above it instead.
-            if (hasFocus) {
-                mControls.requestFocus();
-            }
-        }
-    };
 
-    private CallRecordingDataStore mCallRecordingDataStore;
-    private CallRecordingPlayer mCallRecordingPlayer;
+    /**
+     * List of items to be concatenated together for duration strings.
+     */
+    private ArrayList<CharSequence> mDurationItems = Lists.newArrayList();
 
     public CallDetailHistoryAdapter(Context context, LayoutInflater layoutInflater,
-            CallTypeHelper callTypeHelper, PhoneCallDetails[] phoneCallDetails,
-            boolean showVoicemail, boolean showCallAndSms, View controls,
-            CallRecordingDataStore callRecordingDataStore,
-            CallRecordingPlayer callRecordingPlayer) {
+            CallTypeHelper callTypeHelper, PhoneCallDetails[] phoneCallDetails) {
         mContext = context;
         mLayoutInflater = layoutInflater;
         mCallTypeHelper = callTypeHelper;
         mPhoneCallDetails = phoneCallDetails;
-        mShowVoicemail = showVoicemail;
-        mShowCallAndSms = showCallAndSms;
-        mControls = controls;
-        mCallRecordingDataStore = callRecordingDataStore;
-        mCallRecordingPlayer = callRecordingPlayer;
     }
 
     @Override
@@ -134,14 +107,6 @@ public class CallDetailHistoryAdapter extends BaseAdapter {
             final View header = convertView == null
                     ? mLayoutInflater.inflate(R.layout.call_detail_history_header, parent, false)
                     : convertView;
-            // Voicemail controls are only shown in the main UI if there is a voicemail.
-            View voicemailContainer = header.findViewById(R.id.header_voicemail_container);
-            voicemailContainer.setVisibility(mShowVoicemail ? View.VISIBLE : View.GONE);
-            // Call and SMS controls are only shown in the main UI if there is a known number.
-            View callAndSmsContainer = header.findViewById(R.id.header_call_and_sms_container);
-            callAndSmsContainer.setVisibility(mShowCallAndSms ? View.VISIBLE : View.GONE);
-            header.setFocusable(true);
-            header.setOnFocusChangeListener(mHeaderFocusChangeListener);
             return header;
         }
 
@@ -154,23 +119,17 @@ public class CallDetailHistoryAdapter extends BaseAdapter {
         CallTypeIconsView callTypeIconView =
                 (CallTypeIconsView) result.findViewById(R.id.call_type_icon);
         TextView callTypeTextView = (TextView) result.findViewById(R.id.call_type_text);
-        ImageView subIconView = (ImageView) result.findViewById(R.id.sub_icon);
         TextView dateView = (TextView) result.findViewById(R.id.date);
         TextView durationView = (TextView) result.findViewById(R.id.duration);
 
         int callType = details.callTypes[0];
+        boolean isVideoCall = (details.features & Calls.FEATURES_VIDEO) == Calls.FEATURES_VIDEO
+                && CallUtil.isVideoEnabled(mContext);
+
         callTypeIconView.clear();
         callTypeIconView.add(callType);
-        callTypeTextView.setText(mCallTypeHelper.getCallTypeText(callType));
-        // Set the sub icon.
-        if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-            subIconView.setVisibility(View.VISIBLE);
-            subIconView.setImageDrawable(
-                    DialtactsActivity.getMultiSimIcon(mContext, details.subscription));
-        } else {
-            // Not enable, set the view as gone.
-            subIconView.setVisibility(View.GONE);
-        }
+        callTypeIconView.setShowVideo(isVideoCall);
+        callTypeTextView.setText(mCallTypeHelper.getCallTypeText(callType, isVideoCall));
         // Set the date.
         CharSequence dateValue = DateUtils.formatDateRange(mContext, details.date, details.date,
                 DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_SHOW_DATE |
@@ -181,29 +140,14 @@ public class CallDetailHistoryAdapter extends BaseAdapter {
             durationView.setVisibility(View.GONE);
         } else {
             durationView.setVisibility(View.VISIBLE);
-            durationView.setText(formatDuration(details.duration, details.durationType));
-        }
-
-        // do this synchronously to prevent recordings from "popping in"
-        // after detail item is displayed
-        if (CallRecorderService.isEnabled(mContext)) {
-            mCallRecordingDataStore.open(mContext); // opens unless already open
-            List<CallRecording> recordings =
-                    mCallRecordingDataStore.getRecordings(details.number.toString(), details.date);
-
-            ViewGroup playbackView =
-                    (ViewGroup) result.findViewById(R.id.recording_playback_layout);
-            playbackView.removeAllViews();
-            for (CallRecording recording : recordings) {
-                Button button = mCallRecordingPlayer.createPlaybackButton(mContext, recording);
-                playbackView.addView(button);
-            }
+            durationView.setText(
+                    formatDurationAndDataUsage(details.duration, details.dataUsage, details.durationType));
         }
 
         return result;
     }
 
-    private String formatDuration(long elapsedSeconds, int durationType) {
+    private CharSequence formatDuration(long elapsedSeconds) {
         long minutes = 0;
         long seconds = 0;
 
@@ -213,24 +157,40 @@ public class CallDetailHistoryAdapter extends BaseAdapter {
         }
         seconds = elapsedSeconds;
 
-        String timeStr = mContext.getString(R.string.callDetailsDurationFormat,
-                minutes, seconds);
+        return mContext.getString(R.string.callDetailsDurationFormat, minutes, seconds);
+    }
 
-        boolean duration = mContext.getResources().getBoolean(R.bool.call_durationtype_enabled);
+    /**
+     * Formats a string containing the call duration and the data usage (if specified).
+     *
+     * @param elapsedSeconds Total elapsed seconds.
+     * @param dataUsage Data usage in bytes, or null if not specified.
+     * @return String containing call duration and data usage.
+     */
+    private CharSequence formatDurationAndDataUsage(long elapsedSeconds, Long dataUsage,
+            int durationType) {
+        CharSequence duration = formatDuration(elapsedSeconds);
 
-        if (duration) {
-            switch (durationType) {
-                case Calls.DURATION_TYPE_ACTIVE:
-                    return mContext.getString(R.string.call_duration_active)
-                            + timeStr;
-                case Calls.DURATION_TYPE_CALLOUT:
-                    return mContext.getString(R.string.call_duration_call_out)
-                            + timeStr;
-                default:
-                    return timeStr;
-            }
+        if (dataUsage != null) {
+            mDurationItems.clear();
+            mDurationItems.add(duration);
+            mDurationItems.add(Formatter.formatShortFileSize(mContext, dataUsage));
+
+            return DialerUtils.join(mContext.getResources(), mDurationItems);
         } else {
-            return timeStr;
+            boolean enabled = mContext.getResources().getBoolean(R.bool.call_durationtype_enabled);
+            if (enabled) {
+                switch (durationType) {
+                    case Calls.DURATION_TYPE_ACTIVE:
+                        return mContext.getString(R.string.call_duration_active) + duration;
+                    case Calls.DURATION_TYPE_CALLOUT:
+                        return mContext.getString(R.string.call_duration_call_out) + duration;
+                    default:
+                        return duration;
+                }
+            } else {
+                return duration;
+            }
         }
     }
 }

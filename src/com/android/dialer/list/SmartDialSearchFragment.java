@@ -41,6 +41,8 @@ public class SmartDialSearchFragment extends SearchFragment {
         // Disable the direct call shortcut for the smart dial fragment, since the call button
         // will already be showing anyway.
         adapter.setShortcutEnabled(SmartDialNumberListAdapter.SHORTCUT_DIRECT_CALL, false);
+        adapter.setShortcutEnabled(SmartDialNumberListAdapter.SHORTCUT_ADD_NUMBER_TO_CONTACTS,
+                false);
         return adapter;
     }
 
@@ -69,11 +71,5 @@ public class SmartDialSearchFragment extends SearchFragment {
     protected Uri getPhoneUri(int position) {
         final SmartDialNumberListAdapter adapter = (SmartDialNumberListAdapter) getAdapter();
         return adapter.getDataUri(position);
-    }
-
-
-    public void setDialpadQueryString(String queryString) {
-        final SmartDialNumberListAdapter adapter = (SmartDialNumberListAdapter) getAdapter();
-        adapter.setDialpadQueryString(queryString);
     }
 }

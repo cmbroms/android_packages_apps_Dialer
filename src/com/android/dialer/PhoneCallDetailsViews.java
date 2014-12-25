@@ -30,19 +30,19 @@ public final class PhoneCallDetailsViews {
     public final TextView nameView;
     public final View callTypeView;
     public final CallTypeIconsView callTypeIcons;
-    public final TextView callTypeAndDate;
-    public final TextView labelView;
-    public final ImageView subIconView;
+    public final ImageView callAccountIcon;
+    public final TextView callLocationAndDate;
+    public final TextView voicemailTranscriptionView;
 
     private PhoneCallDetailsViews(TextView nameView, View callTypeView,
-            CallTypeIconsView callTypeIcons, TextView callTypeAndDate, TextView labelView,
-            ImageView subIconView) {
+            CallTypeIconsView callTypeIcons, ImageView callAccountIcon,
+            TextView callLocationAndDate, TextView voicemailTranscriptionView) {
         this.nameView = nameView;
         this.callTypeView = callTypeView;
         this.callTypeIcons = callTypeIcons;
-        this.callTypeAndDate = callTypeAndDate;
-        this.labelView = labelView;
-        this.subIconView = subIconView;
+        this.callAccountIcon = callAccountIcon;
+        this.callLocationAndDate = callLocationAndDate;
+        this.voicemailTranscriptionView = voicemailTranscriptionView;
     }
 
     /**
@@ -56,9 +56,9 @@ public final class PhoneCallDetailsViews {
         return new PhoneCallDetailsViews((TextView) view.findViewById(R.id.name),
                 view.findViewById(R.id.call_type),
                 (CallTypeIconsView) view.findViewById(R.id.call_type_icons),
-                (TextView) view.findViewById(R.id.call_count_and_date),
-                (TextView) view.findViewById(R.id.label),
-                (ImageView) view.findViewById(R.id.sub_icon));
+                (ImageView) view.findViewById(R.id.call_account_icon),
+                (TextView) view.findViewById(R.id.call_location_and_date),
+                (TextView) view.findViewById(R.id.voicemail_transcription));
     }
 
     public static PhoneCallDetailsViews createForTest(Context context) {
@@ -66,8 +66,8 @@ public final class PhoneCallDetailsViews {
                 new TextView(context),
                 new View(context),
                 new CallTypeIconsView(context),
+                new ImageView(context),
                 new TextView(context),
-                new TextView(context),
-                new ImageView(context));
+                new TextView(context));
     }
 }

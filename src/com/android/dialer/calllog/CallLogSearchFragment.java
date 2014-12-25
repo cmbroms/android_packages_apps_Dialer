@@ -47,9 +47,13 @@ import com.android.dialerbind.ObjectFactory;
 
 
 public class CallLogSearchFragment extends CallLogFragment {
+
     private String mQueryString;
 
-    @Override
+    private void updateCallList(int filterType) {
+        mCallLogQueryHandler.fetchCalls(CallLogQueryHandler.CALL_TYPE_ALL);
+    }
+
     public void fetchCalls() {
         if (TextUtils.isEmpty(mQueryString)) {
             mCallLogQueryHandler.fetchCalls(CallLogQueryHandler.CALL_TYPE_ALL);
@@ -58,30 +62,29 @@ public class CallLogSearchFragment extends CallLogFragment {
         }
     }
 
-    @Override
     public void startCallsQuery() {
         mAdapter.setLoading(true);
-        fetchCalls();
-    }
-
-    @Override
-    public void onViewCreated(View view, Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-        mAdapter.setQueryString(mQueryString);
-        startCallsQuery();
+        if (TextUtils.isEmpty(mQueryString)) {
+            mCallLogQueryHandler.fetchCalls(CallLogQueryHandler.CALL_TYPE_ALL);
+        } else {
+            mCallLogQueryHandler.fetchCalls(mQueryString);
+        }
     }
 
     public void setQueryString(String queryString) {
         if (!TextUtils.equals(mQueryString, queryString)) {
             mQueryString = queryString;
             if (mAdapter != null) {
+                mAdapter.setLoading(true);
                 mAdapter.setQueryString(mQueryString);
-                startCallsQuery();
+                if (TextUtils.isEmpty(queryString)) {
+                    mCallLogQueryHandler
+                            .fetchCalls(CallLogQueryHandler.CALL_TYPE_ALL);
+                } else {
+                    mCallLogQueryHandler.fetchCalls(queryString);
+                }
             }
         }
     }
 
-    public String getQueryString() {
-        return mQueryString;
-    }
 }

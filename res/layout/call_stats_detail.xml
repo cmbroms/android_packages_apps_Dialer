@@ -15,65 +15,92 @@
      limitations under the License.
 -->
 
-<com.android.dialer.widget.AnchoredScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:ex="http://schemas.android.com/apk/res/com.android.dialer"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/call_stats_detail"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    ex:anchorView="@+id/photo_text_bar_dummy"
-    ex:anchoredView="@+id/controls" >
+    android:orientation="vertical"
+    android:layout_alignParentStart="true"
+    android:layout_alignParentTop="true"
+    android:background="@color/background_dialer_details_list_items" >
 
-    <RelativeLayout
-        android:id="@+id/call_stats_detail"
+    <!-- Caller information "card" -->
+    <LinearLayout
+        android:id="@+id/caller_information"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone" >
+        android:layout_height="wrap_content"
+        android:paddingStart="@dimen/call_detail_horizontal_margin"
+        android:paddingTop="@dimen/call_detail_top_margin"
+        android:paddingBottom="@dimen/call_detail_bottom_margin"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        android:translationZ="@dimen/call_detail_translation_z"
+        android:focusable="true"
+        android:background="@color/background_dialer_white" >
 
-        <!-- This layout defines the position of the scroll anchor.
-             Sizes are supposed to match their counterpart in controls -->
-        <RelativeLayout
-            android:layout_width="match_parent"
+        <QuickContactBadge
+            android:id="@+id/quick_contact_photo"
+            android:layout_width="@dimen/contact_photo_size"
+            android:layout_height="@dimen/contact_photo_size"
+            android:layout_alignParentStart="true"
+            android:layout_gravity="top"
+            android:layout_marginTop="3dp"
+            android:focusable="true"
+            />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:layout_alignParentTop="true" >
-
-            <!-- Contact photo placeholder -->
-            <com.android.contacts.common.widget.ProportionalLayout
-                android:layout_width="match_parent"
+            android:gravity="center_vertical"
+            android:layout_marginStart="@dimen/call_detail_horizontal_margin"
+            >
+            <TextView
+                android:id="@+id/caller_name"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:id="@+id/photo_dummy"
-                ex:direction="widthToHeight"
-                ex:ratio="0.5" >
-
-                <!-- Proportional layout requires a view in it. -->
-                <View
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-
-            </com.android.contacts.common.widget.ProportionalLayout>
-
-            <!-- Contact name placeholder -->
-            <View
-                android:id="@+id/photo_text_bar_dummy"
-                android:layout_width="match_parent"
-                android:layout_height="42dip"
-                android:layout_alignBottom="@id/photo_dummy"
-                android:layout_alignParentStart="true" />
-
-        </RelativeLayout>
-
-        <!-- The actual details -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/controls" >
-
-            <include layout="@layout/call_stats_detail_info" />
+                android:textColor="?attr/call_log_primary_text_color"
+                android:textSize="@dimen/call_log_primary_text_size"
+                android:includeFontPadding="false"
+                android:layout_marginBottom="5dp"
+                android:singleLine="true"
+                />
+            <TextView
+                android:id="@+id/caller_number"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/call_log_secondary_text_color"
+                android:textSize="@dimen/call_log_secondary_text_size"
+                android:layout_marginBottom="1dp"
+                android:singleLine="true"
+                />
+            <TextView
+                android:id="@+id/phone_account_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/call_log_secondary_text_color"
+                android:textSize="@dimen/call_log_secondary_text_size"
+                android:singleLine="true"
+                android:visibility="gone"
+                />
         </LinearLayout>
 
-        <include layout="@layout/call_detail_pinned_header" />
+    </LinearLayout>
 
-    </RelativeLayout>
+    <TextView
+        android:id="@+id/header_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:singleLine="true"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="?attr/call_log_header_color" />
 
-</com.android.dialer.widget.AnchoredScrollView>
+    <!-- The actual details -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <include layout="@layout/call_stats_detail_info" />
+    </LinearLayout>
+
+</LinearLayout>

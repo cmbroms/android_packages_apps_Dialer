@@ -24,7 +24,6 @@ import android.content.res.Resources;
 import android.os.Bundle;
 import android.provider.CallLog.Calls;
 import android.os.AsyncTask;
-import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -37,6 +36,7 @@ import com.android.contacts.common.ContactPhotoManager;
 import com.android.contacts.common.GeoUtil;
 import com.android.dialer.CallDetailHeader;
 import com.android.dialer.R;
+import com.android.dialer.calllog.CallTypeIconsView;
 import com.android.dialer.calllog.ContactInfo;
 import com.android.dialer.calllog.ContactInfoHelper;
 import com.android.dialer.calllog.PhoneNumberDisplayHelper;
@@ -71,7 +71,6 @@ public class CallStatsDetailActivity extends Activity {
     private TextView mMissedSummary;
     private TextView mMissedCount;
     private PieChartView mPieChart;
-    private PhoneNumberDisplayHelper mPhoneNumberDisplayHelper;
 
     private CallStatsDetails mData;
     private String mNumber = null;
@@ -96,11 +95,10 @@ public class CallStatsDetailActivity extends Activity {
 
         mResources = getResources();
 
-        final PhoneNumberUtilsWrapper mPhoneNumberUtilsWrapper = new PhoneNumberUtilsWrapper();
-        mPhoneNumberDisplayHelper = new PhoneNumberDisplayHelper(mPhoneNumberUtilsWrapper, mResources);
-        mCallDetailHeader = new CallDetailHeader(this, mPhoneNumberDisplayHelper);
+        PhoneNumberDisplayHelper phoneNumberHelper = new PhoneNumberDisplayHelper(mResources);
+        mCallDetailHeader = new CallDetailHeader(this, phoneNumberHelper);
         mCallStatsDetailHelper = new CallStatsDetailHelper(mResources,
-                mPhoneNumberUtilsWrapper);
+                new PhoneNumberUtilsWrapper());
         mContactInfoHelper = new ContactInfoHelper(this, GeoUtil.getCurrentCountryIso(this));
 
         mHeaderTextView = (TextView) findViewById(R.id.header_text);
@@ -116,9 +114,11 @@ public class CallStatsDetailActivity extends Activity {
         mMissedCount = (TextView) findViewById(R.id.missed_count);
         mPieChart = (PieChartView) findViewById(R.id.pie_chart);
 
-        findViewById(R.id.voicemail_container).setVisibility(View.GONE);
+        setCallType(R.id.in_icon, Calls.INCOMING_TYPE);
+        setCallType(R.id.out_icon, Calls.OUTGOING_TYPE);
+        setCallType(R.id.missed_icon, Calls.MISSED_TYPE);
 
-        getActionBar().setDisplayHomeAsUpEnabled(true);
+        configureActionBar();
         Intent launchIntent = getIntent();
         mData = (CallStatsDetails) launchIntent.getParcelableExtra(EXTRA_DETAILS);
 
@@ -148,34 +148,18 @@ public class CallStatsDetailActivity extends Activity {
         return super.onKeyDown(keyCode, event);
     }
 
+    private void setCallType(int id, int type) {
+        CallTypeIconsView view = (CallTypeIconsView) findViewById(id);
+        view.add(type);
+    }
+
     private void updateData() {
         mNumber = mData.number.toString();
 
         // Set the details header, based on the first phone call.
         mCallStatsDetailHelper.setCallStatsDetailHeader(mHeaderTextView, mData);
-        // TODO: can we pass subscription from here?
-        mCallDetailHeader.updateViews(mNumber, mData.numberPresentation, mData, -1);
-
-        final CharSequence displayNumber =
-            mPhoneNumberDisplayHelper.getDisplayNumber(
-                    mData.number,
-                    mData.numberPresentation,
-                    mData.formattedNumber);
-
-        final String displayNameForDefaultImage = TextUtils.isEmpty(mData.name) ?
-            displayNumber.toString() : mData.name.toString();
-
-        final String lookupKey = ContactInfoHelper.getLookupKeyFromUri(mData.contactUri);
-
-        final boolean isVoicemailNumber =
-                PhoneNumberUtilsWrapper.INSTANCE.isVoicemailNumber(mData.number);
-
-        final int contactType =
-            isVoicemailNumber? ContactPhotoManager.TYPE_VOICEMAIL :
-            ContactPhotoManager.TYPE_DEFAULT;
-
-        mCallDetailHeader.loadContactPhotos(mData.photoUri, displayNameForDefaultImage, lookupKey, contactType);
-
+        mCallDetailHeader.updateViews(mData);
+        mCallDetailHeader.loadContactPhotos(mData, ContactPhotoManager.TYPE_DEFAULT);
         invalidateOptionsMenu();
 
         mPieChart.setOriginAngle(240);
@@ -257,10 +241,10 @@ public class CallStatsDetailActivity extends Activity {
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
+	/*
         menu.findItem(R.id.menu_edit_number_before_call).setVisible(
                 mCallDetailHeader.canEditNumberBeforeCall());
-        menu.findItem(R.id.menu_add_to_blacklist).setVisible(
-                mCallDetailHeader.canPlaceCallsTo());
+		*/
         return super.onPrepareOptionsMenu(menu);
     }
 
@@ -283,6 +267,14 @@ public class CallStatsDetailActivity extends Activity {
 
     public void onMenuAddToBlacklist(MenuItem menuItem) {
         mContactInfoHelper.addNumberToBlacklist(mNumber);
+    }
+
+    private void configureActionBar() {
+        ActionBar actionBar = getActionBar();
+        if (actionBar != null) {
+            actionBar.setDisplayOptions(ActionBar.DISPLAY_HOME_AS_UP
+                    | ActionBar.DISPLAY_SHOW_HOME);
+        }
     }
 
     private void onHomeSelected() {

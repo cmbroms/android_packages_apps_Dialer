@@ -15,19 +15,34 @@
 -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/menu_calllog_detail_video_call"
+        android:id="@+id/menu_video_call"
+        android:showAsAction="withText"
         android:title="@string/video_call"
-        android:onClick="onMenuVTCall"
+        android:onClick="onMenuVideoCall"
+    />
+    <item
+        android:id="@+id/menu_add_to_black_list"
+        android:showAsAction="withText"
+        android:title="@string/add_to_black_list"
+        android:onClick="onMenuAddToBlackList"
+    />
+    <item
+        android:id="@+id/menu_add_to_white_list"
+        android:showAsAction="withText"
+        android:title="@string/add_to_white_list"
+        android:onClick="onMenuAddToWhiteList"
     />
     <item
         android:id="@+id/menu_trash"
-        android:icon="@drawable/ic_menu_delete_dk"
+        android:icon="@drawable/ic_calllog_delete"
         android:showAsAction="ifRoom"
         android:title="@string/recentCalls_trashVoicemail"
         android:onClick="onMenuTrashVoicemail"
     />
     <item
         android:id="@+id/menu_remove_from_call_log"
+        android:icon="@drawable/ic_calllog_delete"
+        android:showAsAction="ifRoom"
         android:title="@string/recentCalls_removeFromRecentList"
         android:onClick="onMenuRemoveFromCallLog"
     />

@@ -26,9 +26,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 
+import com.android.contacts.common.CallUtil;
 import com.android.contacts.common.ContactPhotoManager;
 import com.android.contacts.common.ContactPhotoManager.DefaultImageRequest;
-import com.android.contacts.common.CallUtil;
 import com.android.contacts.common.GeoUtil;
 import com.android.dialer.R;
 import com.android.dialer.calllog.CallLogAdapterHelper;
@@ -78,7 +78,7 @@ class CallStatsAdapter extends ArrayAdapter<CallStatsDetails>
     private boolean mSortByDuration;
 
     private final ContactPhotoManager mContactPhotoManager;
-    private PhoneNumberDisplayHelper mPhoneNumberDisplayHelper;
+    private PhoneNumberDisplayHelper mPhoneNumberHelper;
 
     private final Comparator<CallStatsDetails> mDurationComparator = new Comparator<CallStatsDetails>() {
         @Override
@@ -111,19 +111,18 @@ class CallStatsAdapter extends ArrayAdapter<CallStatsDetails>
         mTotalItem = new CallStatsDetails(null, 0, null, null, null, 0);
         mInfoLookup = new ConcurrentHashMap<ContactInfo, CallStatsDetails>();
 
-        final PhoneNumberUtilsWrapper mPhoneNumberUtilsWrapper = new PhoneNumberUtilsWrapper();
         Resources resources = mContext.getResources();
-        mPhoneNumberDisplayHelper = new PhoneNumberDisplayHelper(mPhoneNumberUtilsWrapper, resources);
+        mPhoneNumberHelper = new PhoneNumberDisplayHelper(resources);
 
         final String currentCountryIso = GeoUtil.getCurrentCountryIso(mContext);
         final ContactInfoHelper contactInfoHelper =
                 new ContactInfoHelper(mContext, currentCountryIso);
 
         mAdapterHelper = new CallLogAdapterHelper(mContext, this,
-                contactInfoHelper, mPhoneNumberDisplayHelper);
+                contactInfoHelper, mPhoneNumberHelper);
         mContactPhotoManager = ContactPhotoManager.getInstance(mContext);
         mCallStatsDetailHelper = new CallStatsDetailHelper(resources,
-                mPhoneNumberUtilsWrapper);
+                new PhoneNumberUtilsWrapper());
     }
 
     public void updateData(Map<ContactInfo, CallStatsDetails> calls, long from, long to) {
@@ -213,28 +212,20 @@ class CallStatsAdapter extends ArrayAdapter<CallStatsDetails>
         final CallStatsDetails details = getItem(position);
         final CallStatsDetails first = getItem(0);
 
-        views.primaryActionView.setVisibility(View.VISIBLE);
         views.primaryActionView.setTag(IntentProvider.getCallStatsDetailIntentProvider(
                 details, mFilterFrom, mFilterTo, mSortByDuration));
-
         mCallStatsDetailHelper.setCallStatsDetails(views.callStatsDetailViews,
                 details, first, mTotalItem, mType, mSortByDuration);
 
-
-        int contactType = ContactPhotoManager.TYPE_DEFAULT;
-
-        String lookupKey = details.contactUri == null ? null
-                : ContactInfoHelper.getLookupKeyFromUri(details.contactUri);
-
         String nameForDefaultImage = null;
         if (TextUtils.isEmpty(details.name)) {
-            nameForDefaultImage = mPhoneNumberDisplayHelper.getDisplayNumber(details.number,
+            nameForDefaultImage = mPhoneNumberHelper.getDisplayNumber(details.number,
                     details.numberPresentation, details.formattedNumber).toString();
         } else {
             nameForDefaultImage = details.name;
         }
 
-        setPhoto(views, details.photoId, details.contactUri, nameForDefaultImage, lookupKey, contactType);
+        setPhoto(views, details.photoId, details.contactUri, nameForDefaultImage);
 
         // Listen for the first draw
         mAdapterHelper.registerOnPreDrawListener(v);
@@ -246,13 +237,17 @@ class CallStatsAdapter extends ArrayAdapter<CallStatsDetails>
         view.setTag(views);
     }
 
-    private void setPhoto(CallStatsListItemViews views, long photoId, Uri contactUri,
-            String displayName, String identifier, int contactType) {
+    private void setPhoto(CallStatsListItemViews views, long photoId,
+            Uri contactUri, String displayName) {
         views.quickContactView.assignContactUri(contactUri);
-        DefaultImageRequest request = new DefaultImageRequest(displayName, identifier,
-                contactType);
-        mContactPhotoManager.loadThumbnail(views.quickContactView, photoId, false /* darkTheme */,
-                request);
+        views.quickContactView.setOverlay(null);
+
+        String lookupKey = contactUri == null ? null
+                : ContactInfoHelper.getLookupKeyFromUri(contactUri);
+        DefaultImageRequest request = new DefaultImageRequest(displayName, lookupKey,
+                ContactPhotoManager.TYPE_DEFAULT, true /* isCircular */);
+        mContactPhotoManager.loadThumbnail(views.quickContactView, photoId, null,
+                false /* darkTheme */, true /* isCircular */, request);
     }
 
     @Override
