@@ -18,6 +18,9 @@ res_dirs := res \
     $(phone_common_dir)/res
 
 LOCAL_SRC_FILES := $(call all-java-files-under, $(src_dirs))
+LOCAL_SRC_FILES += ../../providers/ContactsProvider/src/com/android/providers/contacts/NameSplitter.java \
+                   ../../providers/ContactsProvider/src/com/android/providers/contacts/HanziToPinyin.java \
+                   ../../providers/ContactsProvider/src/com/android/providers/contacts/util/NeededForTesting.java
 LOCAL_RESOURCE_DIR := $(addprefix $(LOCAL_PATH)/, $(res_dirs))
 LOCAL_ASSET_DIR := $(LOCAL_PATH)/assets
 
@@ -27,7 +30,9 @@ LOCAL_AAPT_FLAGS := \
     --extra-packages com.android.contacts.common \
     --extra-packages com.android.phone.common
 
-LOCAL_JAVA_LIBRARIES := telephony-common
+LOCAL_JAVA_LIBRARIES := telephony-common \
+                        ims-common
+
 LOCAL_STATIC_JAVA_LIBRARIES := \
     com.android.services.telephony.common \
     com.android.vcard \

@@ -31,11 +31,13 @@ package com.android.dialer.calllog;
 
 import android.app.Activity;
 import android.content.Context;
+import android.database.Cursor;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.provider.CallLog.Calls;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
+import android.text.format.DateUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -52,6 +54,7 @@ import android.widget.TextView;
 import com.android.contacts.common.MoreContactUtils;
 import com.android.dialer.R;
 import com.android.dialer.voicemail.VoicemailStatusHelperImpl;
+import com.android.dialer.widget.DoubleDatePickerDialog;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.util.List;
@@ -59,8 +62,13 @@ import java.util.List;
 /**
  * Displays a list of call log entries.
  */
-public class MSimCallLogFragment extends CallLogFragment {
+public class MSimCallLogFragment extends CallLogFragment
+        implements DoubleDatePickerDialog.OnDateSetListener {
     private static final String TAG = "MSimCallLogFragment";
+
+    private long mFilterFrom = -1;
+    private long mFilterTo = -1;
+    private TextView mDateFilterView;
 
     /**
      * Key for the call log sub saved in the default preference.
@@ -74,13 +82,6 @@ public class MSimCallLogFragment extends CallLogFragment {
     // Default to all slots.
     private int mCallSubFilter = CallLogQueryHandler.CALL_SUB_ALL;
 
-    // The index for call type spinner.
-    private static final int INDEX_CALL_TYPE_ALL = 0;
-    private static final int INDEX_CALL_TYPE_INCOMING = 1;
-    private static final int INDEX_CALL_TYPE_OUTGOING = 2;
-    private static final int INDEX_CALL_TYPE_MISSED = 3;
-    private static final int INDEX_CALL_TYPE_VOICEMAIL = 4;
-
     private OnItemSelectedListener mSubSelectedListener = new OnItemSelectedListener() {
 
         @Override
@@ -89,7 +90,7 @@ public class MSimCallLogFragment extends CallLogFragment {
             int sub = position - 1;
             mCallSubFilter = sub;
             setSelectedSub(sub);
-            mCallLogQueryHandler.fetchCalls(mCallTypeFilter, 0, mCallSubFilter);
+            fetchCalls();
         }
 
         @Override
@@ -104,24 +105,8 @@ public class MSimCallLogFragment extends CallLogFragment {
         @Override
         public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
             Log.i(TAG, "Status selected, position: " + position);
-            switch (position) {
-                case INDEX_CALL_TYPE_ALL:
-                    mCallTypeFilter = CallLogQueryHandler.CALL_TYPE_ALL;
-                    break;
-                case INDEX_CALL_TYPE_INCOMING:
-                    mCallTypeFilter = Calls.INCOMING_TYPE;
-                    break;
-                case INDEX_CALL_TYPE_OUTGOING:
-                    mCallTypeFilter = Calls.OUTGOING_TYPE;
-                    break;
-                case INDEX_CALL_TYPE_MISSED:
-                    mCallTypeFilter = Calls.MISSED_TYPE;
-                    break;
-                case INDEX_CALL_TYPE_VOICEMAIL:
-                    mCallTypeFilter = Calls.VOICEMAIL_TYPE;
-                    break;
-            }
-            mCallLogQueryHandler.fetchCalls(mCallTypeFilter, 0, mCallSubFilter);
+            mCallTypeFilter = ((SpinnerContent)parent.getItemAtPosition(position)).value;
+            fetchCalls();
         }
 
         @Override
@@ -154,6 +139,7 @@ public class MSimCallLogFragment extends CallLogFragment {
 
         mFilterSubSpinnerView = (Spinner) view.findViewById(R.id.filter_sub_spinner);
         mFilterStatusSpinnerView = (Spinner) view.findViewById(R.id.filter_status_spinner);
+        mDateFilterView = (TextView) view.findViewById(R.id.date_filter);
 
         // Update the filter views.
         updateFilterSpinnerViews();
@@ -163,13 +149,13 @@ public class MSimCallLogFragment extends CallLogFragment {
 
     @Override
     public void fetchCalls() {
-        mCallLogQueryHandler.fetchCalls(mCallTypeFilter, 0, mCallSubFilter);
+        fetchCalls(mFilterFrom, mFilterTo, mCallSubFilter);
     }
 
     @Override
     public void startCallsQuery() {
         mAdapter.setLoading(true);
-        mCallLogQueryHandler.fetchCalls(mCallTypeFilter, 0, mCallSubFilter);
+        fetchCalls();
     }
 
     /**
@@ -182,70 +168,33 @@ public class MSimCallLogFragment extends CallLogFragment {
             return;
         }
 
-        // Update the sub filter's content.
-        mCallSubFilter = getSelectedSub();
-        ArrayAdapter<SpinnerContent> filterSubAdapter = new ArrayAdapter<SpinnerContent>(
-                this.getActivity(), R.layout.call_log_spinner_item, setupSubFilterContent());
-        mFilterSubSpinnerView.setAdapter(filterSubAdapter);
-        mFilterSubSpinnerView.setOnItemSelectedListener(mSubSelectedListener);
-        SpinnerContent.setSpinnerContentValue(mFilterSubSpinnerView, mCallSubFilter);
+        final TelephonyManager telephony = (TelephonyManager) getActivity().getSystemService(
+                Context.TELEPHONY_SERVICE);
+        if (!telephony.isMultiSimEnabled()) {
+            mFilterSubSpinnerView.setVisibility(View.GONE);
+        } else {
+            // Update the sub filter's content.
+            ArrayAdapter<SpinnerContent> filterSubAdapter = new ArrayAdapter<SpinnerContent>(
+                    this.getActivity(), R.layout.call_log_spinner_item,
+                    SpinnerContent.setupSubFilterContent(getActivity()));
+
+            if (filterSubAdapter.getCount() <= 1) {
+                mFilterSubSpinnerView.setVisibility(View.GONE);
+            } else {
+                mCallSubFilter = getSelectedSub();
+                mFilterSubSpinnerView.setAdapter(filterSubAdapter);
+                mFilterSubSpinnerView.setOnItemSelectedListener(mSubSelectedListener);
+                SpinnerContent.setSpinnerContentValue(mFilterSubSpinnerView, mCallSubFilter);
+            }
+        }
 
         // Update the status filter's content.
         ArrayAdapter<SpinnerContent> filterStatusAdapter = new ArrayAdapter<SpinnerContent>(
-                this.getActivity(), R.layout.call_log_spinner_item, setupStatusFilterContent());
+                this.getActivity(), R.layout.call_log_spinner_item,
+                SpinnerContent.setupStatusFilterContent(getActivity(), mVoicemailSourcesAvailable));
         mFilterStatusSpinnerView.setAdapter(filterStatusAdapter);
         mFilterStatusSpinnerView.setOnItemSelectedListener(mStatusSelectedListener);
         SpinnerContent.setSpinnerContentValue(mFilterStatusSpinnerView, mCallTypeFilter);
-    }
-
-    private SpinnerContent[] setupSubFilterContent() {
-        TelephonyManager telephonyManager =
-                (TelephonyManager) getActivity().getSystemService(Context.TELEPHONY_SERVICE);
-        int count = telephonyManager.getPhoneCount();
-        // Update the filter sub content.
-        SpinnerContent filterSub[] = new SpinnerContent[count + 1];
-        filterSub[0] = new SpinnerContent(CallLogQueryHandler.CALL_SUB_ALL,
-                getString(R.string.call_log_show_all_slots));
-        for (int i = 0; i < count; i++) {
-            String subDisplayName = PhoneAccountUtils.getAccountLabel(getActivity(),
-                    MoreContactUtils.getAccount(i));
-            filterSub[i + 1] = new SpinnerContent(i, subDisplayName);
-        }
-        return filterSub;
-    }
-
-    private SpinnerContent[] setupStatusFilterContent() {
-        // Didn't show the voice mail item if not available.
-        int statusCount = mVoicemailSourcesAvailable ? 5 : 4;
-        SpinnerContent filterStatus[] = new SpinnerContent[statusCount];
-        for (int i = 0; i < statusCount; i++) {
-            int value = CallLogQueryHandler.CALL_TYPE_ALL;
-            String label = null;
-            switch (i) {
-                case INDEX_CALL_TYPE_ALL:
-                    value = CallLogQueryHandler.CALL_TYPE_ALL;
-                    label = getString(R.string.call_log_all_calls_header);
-                    break;
-                case INDEX_CALL_TYPE_INCOMING:
-                    value = Calls.INCOMING_TYPE;
-                    label = getString(R.string.call_log_incoming_header);
-                    break;
-                case INDEX_CALL_TYPE_OUTGOING:
-                    value = Calls.OUTGOING_TYPE;
-                    label = getString(R.string.call_log_outgoing_header);
-                    break;
-                case INDEX_CALL_TYPE_MISSED:
-                    value = Calls.MISSED_TYPE;
-                    label = getString(R.string.call_log_missed_header);
-                    break;
-                case INDEX_CALL_TYPE_VOICEMAIL:
-                    value = Calls.VOICEMAIL_TYPE;
-                    label = getString(R.string.call_log_voicemail_header);
-                    break;
-            }
-            filterStatus[i] = new SpinnerContent(value, label);
-        }
-        return filterStatus;
     }
 
     /**
@@ -267,32 +216,56 @@ public class MSimCallLogFragment extends CallLogFragment {
                 .putInt(PREFERENCE_KEY_CALLLOG_SUB, sub).commit();
     }
 
-    /**
-     * To save the spinner content.
-     */
-    private static class SpinnerContent {
-        public final int value;
-        public final String label;
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
 
-        public static void setSpinnerContentValue(Spinner spinner, int value) {
-            for (int i = 0, count = spinner.getCount(); i < count; i++) {
-                SpinnerContent sc = (SpinnerContent) spinner.getItemAtPosition(i);
-                if (sc.value == value) {
-                    spinner.setSelection(i, true);
-                    Log.i(TAG, "Set selection for spinner(" + sc + ") with the value: " + value);
-                    return;
-                }
+        inflater.inflate(R.menu.call_log_fragment_options, menu);
+        MenuItem resetItem = menu.findItem(R.id.reset_date_filter);
+        resetItem.setVisible(mFilterFrom != -1);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.date_filter:
+                final DoubleDatePickerDialog.Fragment fragment =
+                        new DoubleDatePickerDialog.Fragment();
+                fragment.setArguments(DoubleDatePickerDialog.Fragment.createArguments(
+                        mFilterFrom, mFilterTo));
+                fragment.show(getFragmentManager(), "filter");
+                return true;
+            case R.id.reset_date_filter:
+                mFilterFrom = -1;
+                mFilterTo = -1;
+                fetchCalls();
+                getActivity().invalidateOptionsMenu();
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public boolean onCallsFetched(Cursor cursor) {
+        boolean result = super.onCallsFetched(cursor);
+
+        if (mDateFilterView != null) {
+            if (mFilterFrom == -1) {
+                mDateFilterView.setVisibility(View.GONE);
+            } else {
+                mDateFilterView.setText(DateUtils.formatDateRange(getActivity(),
+                        mFilterFrom, mFilterTo, 0));
+                mDateFilterView.setVisibility(View.VISIBLE);
             }
         }
+        return result;
+    }
 
-        public SpinnerContent(int value, String label) {
-            this.value = value;
-            this.label = label;
-        }
-
-        @Override
-        public String toString() {
-            return label;
-        }
+    @Override
+    public void onDateSet(long from, long to) {
+        mFilterFrom = from;
+        mFilterTo = to;
+        getActivity().invalidateOptionsMenu();
+        fetchCalls();
     }
 }
