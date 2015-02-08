@@ -99,6 +99,8 @@ import com.android.phone.common.util.SettingsUtil;
 import com.android.ims.ImsManager;
 import com.android.internal.telephony.TelephonyProperties;
 import com.android.phone.common.animation.AnimationListenerAdapter;
+import com.android.phone.common.animation.AnimUtils.AnimationCallback;
+
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -575,7 +577,6 @@ public class DialtactsActivity extends TransactionSafeActivity implements View.O
                 if (!mIsDialpadShown) {
                     mInCallDialpadUp = false;
                     showDialpadFragment(true);
-                    mFloatingActionButton.setImageResource(R.drawable.fab_ic_call);
                     mFloatingActionButton.setVisibility(view.VISIBLE);
                     setConferenceDialButtonImage(false);
                     setConferenceDialButtonVisibility(true);
@@ -590,7 +591,6 @@ public class DialtactsActivity extends TransactionSafeActivity implements View.O
                 mIsDialpadShown = false;
                 mDialCallButton.setVisibility(view.VISIBLE);
                 mDialpadFragment.dialConferenceButtonPressed();
-                mFloatingActionButton.setImageResource(R.drawable.fab_ic_dial);
                 updateFloatingActionButtonControllerAlignment(true);
                 mFloatingActionButton.setVisibility(view.VISIBLE);
             break;
@@ -693,8 +693,9 @@ public class DialtactsActivity extends TransactionSafeActivity implements View.O
         // deliver is not more that 2000, because too long arguments
         // will cause TransactionTooLargeException in binder.
         if (size > ImportExportDialogFragment.MAX_COUNT_ALLOW_SHARE_CONTACT) {
-            Toast.makeText(this, R.string.share_failed,
-                    Toast.LENGTH_SHORT).show();
+            String text = getString(R.string.contact_share_failed_toast,
+                    ImportExportDialogFragment.MAX_COUNT_ALLOW_SHARE_CONTACT);
+            Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
             return null;
         }
         StringBuilder uriListBuilder = new StringBuilder();
@@ -730,9 +731,15 @@ public class DialtactsActivity extends TransactionSafeActivity implements View.O
         ft.commit();
 
         if (animate) {
-            mFloatingActionButtonController.scaleOut();
+            mFloatingActionButtonController.scaleOut(new AnimationCallback() {
+                @Override
+                public void onAnimationEnd() {
+                    onFloatingActionButtonHidden();
+                }
+            });
         } else {
             mFloatingActionButtonController.setVisible(false);
+            onFloatingActionButtonHidden();
         }
         mActionBarController.onDialpadUp();
         setConferenceDialButtonVisibility(animate);
@@ -742,16 +749,25 @@ public class DialtactsActivity extends TransactionSafeActivity implements View.O
         }
     }
 
-    /**
-     * Callback from child DialpadFragment when the dialpad is shown.
-     */
-    public void onDialpadShown() {
+    private void onFloatingActionButtonHidden() {
+        // The dialpad might be hidden again (user pressed Back during animation)
+        // by the time this executes.
+        if (!mIsDialpadShown) {
+            return;
+        }
+
         if (mDialConferenceButtonPressed) {
             mFloatingActionButton.setImageResource(R.drawable.fab_ic_dial);
             mDialConferenceButtonPressed = false;
         } else {
             mFloatingActionButton.setImageResource(R.drawable.fab_ic_call);
         }
+    }
+
+    /**
+     * Callback from child DialpadFragment when the dialpad is shown.
+     */
+    public void onDialpadShown() {
         updateFloatingActionButtonControllerAlignment(mDialpadFragment.getAnimate());
         if (mDialpadFragment.getAnimate()) {
             mDialpadFragment.getView().startAnimation(mSlideIn);
